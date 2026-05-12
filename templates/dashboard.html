@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Dashboard</h2>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-muted mb-1">Total balance</h6>
+                <h3 class="mb-0">£{{ "%.2f"|format(total_balance) }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-muted mb-1">Income this month</h6>
+                <h3 class="mb-0 text-success">£{{ "%.2f"|format(month_income) }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-muted mb-1">Expenses this month</h6>
+                <h3 class="mb-0 text-danger">£{{ "%.2f"|format(month_expenses) }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-5">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Expenses by category</h5>
+                {% if expense_breakdown %}
+                    <canvas id="expenseChart" height="220"></canvas>
+                {% else %}
+                    <p class="text-muted mb-0">
+                        No expenses this month yet. Add one from the
+                        <a href="{{ url_for('transactions_add') }}">Transactions</a> page.
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0">Recent transactions</h5>
+                    <a href="{{ url_for('transactions_list') }}" class="small">View all</a>
+                </div>
+                {% if recent_transactions %}
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Category</th>
+                                <th class="text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in recent_transactions %}
+                            <tr>
+                                <td>{{ t.date }}</td>
+                                <td>{{ t.description }}</td>
+                                <td>
+                                    <span class="badge"
+                                          style="background-color: {{ t.color }};">
+                                        {{ t.category_name }}
+                                    </span>
+                                </td>
+                                <td class="text-end {{ 'text-danger' if t.type == 'expense' else 'text-success' }}">
+                                    {{ '-' if t.type == 'expense' else '+' }}£{{ "%.2f"|format(t.amount) }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="text-muted mb-0">No transactions yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if expense_breakdown %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    const ctx = document.getElementById('expenseChart');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ expense_breakdown|map(attribute='name')|list|tojson }},
+            datasets: [{
+                data: {{ expense_breakdown|map(attribute='total')|list|tojson }},
+                backgroundColor: {{ expense_breakdown|map(attribute='color')|list|tojson }},
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'right' } } }
+    });
+</script>
+{% endif %}
+{% endblock %}

@@ -1,22 +1,13 @@
-# Finance Tracker — SWE5303
+# FinTrack — SWE5303
 
-A personal finance web app built with Flask, SQLite and Bootstrap 5. Group project for SWE5303.
+Personal finance web app. Built with Flask, SQLite and Bootstrap 5 as the SWE5303 group project (assessment 2).
 
-## What the app does
-
-A logged-in user can:
-
-- Register and sign in
-- Manage multiple financial accounts (cash, bank, credit, savings)
-- Create income and expense categories
-- Record transactions (date, amount, category, account, description)
-- View a dashboard with total balance, monthly income, monthly expenses, and an expense breakdown chart
+A logged-in user can register, add multiple financial accounts, split income and expense categories, record transactions, and see a dashboard with balance, monthly totals and an expense-by-category chart. No bank integration, no cloud — all data sits in a local SQLite file. Local-by-design is part of the pitch (see the SRS literature review).
 
 ## Quick start
 
-### 1. Set up your environment (first time only)
-
 ```bash
+# 1. virtual environment (first time only)
 python -m venv venv
 
 # Windows
@@ -24,60 +15,86 @@ venv\Scripts\activate
 # macOS / Linux
 source venv/bin/activate
 
+# 2. dependencies (first time only)
 pip install -r requirements.txt
-```
 
-### 2. Create the database (first time only)
-
-```bash
+# 3. database (first time only)
 python init_db.py
-```
 
-This creates `finance.db` from `schema.sql`.
-
-### 3. Run the app
-
-```bash
+# 4. run
 python app.py
 ```
 
-Open `http://localhost:5000`.
+Open `http://localhost:5000`. You should see the login page. Register a user, log in, you're on the dashboard.
 
-## Project files
+If something doesn't work, check `DEV_SETUP.md` — there's a troubleshooting section at the bottom.
 
-- `app.py` — Flask application, split into ownership sections
-- `schema.sql` — database design (4 tables)
-- `init_db.py` — creates the SQLite database from the schema
-- `requirements.txt` — Python dependencies
-- `templates/` — Jinja HTML templates
-- `static/css/`, `static/js/` — front-end assets
+## Where to read what
 
-## Workflow at a glance
+| Doc | What's in it |
+| --- | --- |
+| `README.md` | This page — orientation |
+| `TEAM_BRIEF.md` | Who's doing what, ground rules, communication, timeline |
+| `DEV_SETUP.md` | Step-by-step environment setup and Git workflow |
+| `REQUIREMENTS.md` | The 11 functional and 6 non-functional requirements (from the brief) |
 
-1. `git checkout -b feature/your-feature-name`
-2. Code your section
-3. Test locally
-4. `git commit -m "short, clear message"`
-5. `git push origin feature/your-feature-name`
-6. Open a PR on GitHub and request a review
-7. Once approved, merge into `main`
+Read `TEAM_BRIEF.md` first — it's the shortest and tells you which section is yours. Then `DEV_SETUP.md` when you sit down to code.
 
-## Code rules
+## Stack
 
-- **SQL:** always use `?` placeholders, never f-strings or `%` formatting on user input
-- **Passwords:** always hash with Werkzeug, never store plaintext
-- **Auth:** every route that touches user data needs `@login_required` plus `WHERE user_id = ?` in the query
-- **Style:** PEP 8 — 4-space indent, snake_case, short docstrings on functions
+| What | Why |
+| --- | --- |
+| Python 3.11+ | Standard language for the module |
+| Flask 3 | Smallest web framework, easy to explain in the SRS |
+| SQLite | Single file, no server, standard SQL |
+| Flask-Login | Session cookies handled for us |
+| Werkzeug | Password hashing (ships with Flask) |
+| Bootstrap 5 (CDN) | UI looks fine without any design work |
+| Chart.js (CDN) | One doughnut chart on the dashboard |
+
+You don't need to install Bootstrap or Chart.js — they load from a CDN. The only thing `pip install`'d is the Python side.
+
+## Project layout
+
+```
+finance-tracker-swe5303/
+├── app.py              # Flask app — sections split by owner (A/B/C/D)
+├── schema.sql          # 4 tables: users, accounts, categories, transactions
+├── init_db.py          # builds finance.db from schema.sql
+├── requirements.txt    # pip dependencies
+├── templates/          # Jinja HTML
+│   ├── base.html       # shared layout + navbar
+│   ├── dashboard.html
+│   ├── auth/{login,register}.html
+│   ├── accounts/       # built by Person D
+│   ├── categories/     # built by Person C
+│   ├── transactions/   # built by Person B
+│   ├── _placeholder.html
+│   └── _error.html
+└── static/
+    ├── css/custom.css
+    └── js/             # add charts.js etc. as needed
+```
+
+## House rules
+
+A few non-negotiables. Everything else is style.
+
+- **Parameterised SQL.** Always `?` placeholders, never f-strings on user input. The auth section in `app.py` shows the pattern.
+- **Hashed passwords.** Always `werkzeug.security.generate_password_hash`. Never store the plaintext.
+- **Ownership at the data layer.** Every query that touches user data ends with `WHERE user_id = ?` plus the route has `@login_required`. Both, not either-or.
+- **No direct pushes to `main`.** Open a PR. Someone else reviews. Then merge.
+- **No `.db` files committed.** `.gitignore` already excludes them. If you somehow add one, remove it before pushing.
+
+Read `TEAM_BRIEF.md` for the full list.
 
 ## Team
 
-- Person A (Lead, Auth + DB):
-- Person B (Transactions + Dashboard):
-- Person C (Categories):
-- Person D (Accounts):
+| Letter | Name | Section |
+| --- | --- | --- |
+| A | Abdalla Bakr (HE26492) | Lead, database helpers, auth |
+| B | Cirja Petru (HE25237) | Transactions + dashboard |
+| C | _to fill in_ | Categories |
+| D | _to fill in_ | Accounts |
 
-## More documentation
-
-- `DEV_SETUP.md` — full environment setup walkthrough
-- `REQUIREMENTS.md` — functional and non-functional requirements
-- `WORKFLOW_CHECKLIST.md` — daily / weekly checklists
+Letter labels are just so the docs stay tidy — A/B/C/D maps to whoever owns each section in `app.py`.

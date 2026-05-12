@@ -1,0 +1,20 @@
+/* Tiny custom layer on top of Bootstrap. Keep this file small —
+   prefer Bootstrap utility classes in templates over custom CSS. */
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+.navbar-brand {
+    letter-spacing: 0.5px;
+}
+
+.card {
+    border: 0;
+}
