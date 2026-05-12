@@ -1,6 +1,6 @@
 # Team Brief — FinTrack (SWE5303)
 
-Read this end-to-end before the kick-off call. Ten minutes. Saves us covering basics on the meeting.
+Read this end-to-end before the kick-off call. Ten minutes — means we don't waste time covering basics on the call.
 
 ## What we're building
 
@@ -8,7 +8,7 @@ FinTrack — a personal finance web app. A user registers, adds their accounts (
 
 It runs locally on a laptop. No deployment, no hosting, no costs. We screen-share the demo over Teams.
 
-The marker cares more about the **SRS document** than the demo. A working app that lets us write a strong SRS beats a flashy app with no docs every time.
+The marker cares more about the **SRS document** than the demo. A working app that lets us write a strong SRS beats a flashy app with no docs every time. Keep that in mind whenever you're tempted to gold-plate something.
 
 ## Stack (already set up)
 
@@ -28,7 +28,7 @@ We have around 2 weeks of dev time before SRS-heavy week. Five mini-sprints — 
 
 After sprint 5, dev work is effectively done. The last block is SRS heavy push, UML diagrams, demo dry-run.
 
-If your assigned section ships early, ask the lead (A) what to pick up next. Don't sit idle.
+If your section ships early, ask A what to pick up next — don't sit idle. Bonus points for whoever bashes through their list first.
 
 ## Who's doing what
 
@@ -145,6 +145,6 @@ Each person:
 - Read this brief
 - Skim `DEV_SETUP.md`
 
-If anything doesn't work, post in #dev-help **before** the meeting so we debug together rather than wasting call time.
+If something doesn't work, flag it in #dev-help **before** the meeting so we debug together rather than burning call time on it.
 
-See everyone on the call.
+That's the lot. See everyone on the call.

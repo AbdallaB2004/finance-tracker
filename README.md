@@ -2,7 +2,7 @@
 
 Personal finance web app. Built with Flask, SQLite and Bootstrap 5 as the SWE5303 group project (assessment 2).
 
-A logged-in user can register, add multiple financial accounts, split income and expense categories, record transactions, and see a dashboard with balance, monthly totals and an expense-by-category chart. No bank integration, no cloud — all data sits in a local SQLite file. Local-by-design is part of the pitch (see the SRS literature review).
+A logged-in user can register, add their accounts, set income and expense categories, log transactions, and see a dashboard with balance, monthly totals and an expense-by-category chart. No bank integration, no cloud — everything sits in a local SQLite file. We're treating local-only as a feature, not a limitation; there's a longer argument for it in the SRS lit review.
 
 ## Quick start
 
@@ -27,7 +27,7 @@ python app.py
 
 Open `http://localhost:5000`. You should see the login page. Register a user, log in, you're on the dashboard.
 
-If something doesn't work, check `DEV_SETUP.md` — there's a troubleshooting section at the bottom.
+If anything goes wrong, the troubleshooting table in `DEV_SETUP.md` covers most of it. If your problem isn't there, post in `#dev-help`.
 
 ## Where to read what
 
@@ -49,10 +49,10 @@ Read `TEAM_BRIEF.md` first — it's the shortest and tells you which section is 
 | SQLite | Single file, no server, standard SQL |
 | Flask-Login | Session cookies handled for us |
 | Werkzeug | Password hashing (ships with Flask) |
-| Bootstrap 5 (CDN) | UI looks fine without any design work |
+| Bootstrap 5 (CDN) | UI looks fine without us having to design anything |
 | Chart.js (CDN) | One doughnut chart on the dashboard |
 
-You don't need to install Bootstrap or Chart.js — they load from a CDN. The only thing `pip install`'d is the Python side.
+Bootstrap and Chart.js load from a CDN at runtime — nothing to install for the frontend. The only `pip install` is on the Python side.
 
 ## Project layout
 
@@ -97,4 +97,4 @@ Read `TEAM_BRIEF.md` for the full list.
 | C | _to fill in_ | Categories |
 | D | _to fill in_ | Accounts |
 
-Letter labels are just so the docs stay tidy — A/B/C/D maps to whoever owns each section in `app.py`.
+A/B/C/D is just a tidy way to map people to sections in `app.py`. Fill in C and D's names once we lock them in.
