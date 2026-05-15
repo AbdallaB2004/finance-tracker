@@ -306,6 +306,24 @@ def accounts_delete(account_id):
         flash('Account not found.', 'danger')
         return redirect(url_for('accounts_list'))
 
+    linked_transaction = query_db(
+        """
+        SELECT id
+        FROM transactions
+        WHERE account_id = ? AND user_id = ?
+        LIMIT 1
+        """,
+        (account_id, current_user.id),
+        one=True
+    )
+
+    if linked_transaction:
+        flash(
+            'This account cannot be deleted because it is linked to existing transactions.',
+            'warning'
+        )
+        return redirect(url_for('accounts_list'))
+
     execute_db(
         """
         DELETE FROM accounts
@@ -316,7 +334,6 @@ def accounts_delete(account_id):
 
     flash('Account deleted successfully.', 'success')
     return redirect(url_for('accounts_list'))
-
 
 # ============================================================================
 # 4. CATEGORIES CRUD  (Person C)
