@@ -362,11 +362,7 @@ def categories_list():
     categories = query_db(
         """
         SELECT id, name, type, color,
-        (
-            SELECT COUNT(*)
-            FROM transactions t
-            WHERE t.category_id = categories.id
-        ) as usage_count
+        (SELECT COUNT(*) FROM transactions t WHERE t.category_id = categories.id) as usage_count
         FROM categories
         WHERE user_id = ?
         ORDER BY type, name
@@ -390,7 +386,6 @@ def categories_add():
         type_ = request.form.get('type', '').strip()
 
         color = request.form.get('color')
-
         if not color or color.strip() == '':
             color = get_next_color(current_user.id)
 
@@ -413,11 +408,7 @@ def categories_add():
             )
 
         existing = query_db(
-            """
-            SELECT id
-            FROM categories
-            WHERE user_id = ? AND LOWER(name) = LOWER(?)
-            """,
+            "SELECT id FROM categories WHERE user_id = ? AND LOWER(name) = LOWER(?)",
             (current_user.id, name),
             one=True,
         )
@@ -432,10 +423,7 @@ def categories_add():
             )
 
         execute_db(
-            """
-            INSERT INTO categories (user_id, name, type, color)
-            VALUES (?, ?, ?, ?)
-            """,
+            "INSERT INTO categories (user_id, name, type, color) VALUES (?, ?, ?, ?)",
             (current_user.id, name, type_, color),
         )
 
@@ -454,11 +442,7 @@ def categories_add():
 @login_required
 def categories_edit(category_id):
     category = query_db(
-        """
-        SELECT *
-        FROM categories
-        WHERE id = ? AND user_id = ?
-        """,
+        "SELECT * FROM categories WHERE id = ? AND user_id = ?",
         (category_id, current_user.id),
         one=True,
     )
@@ -477,7 +461,6 @@ def categories_edit(category_id):
         type_ = request.form.get('type', '').strip()
 
         color = request.form.get('color')
-
         if not color or color.strip() == '':
             color = get_next_color(current_user.id)
 
@@ -500,13 +483,7 @@ def categories_edit(category_id):
             )
 
         existing = query_db(
-            """
-            SELECT id
-            FROM categories
-            WHERE user_id = ?
-            AND LOWER(name) = LOWER(?)
-            AND id != ?
-            """,
+            "SELECT id FROM categories WHERE user_id = ? AND LOWER(name) = LOWER(?) AND id != ?",
             (current_user.id, name, category_id),
             one=True,
         )
@@ -521,11 +498,7 @@ def categories_edit(category_id):
             )
 
         execute_db(
-            """
-            UPDATE categories
-            SET name = ?, type = ?, color = ?
-            WHERE id = ? AND user_id = ?
-            """,
+            "UPDATE categories SET name = ?, type = ?, color = ? WHERE id = ? AND user_id = ?",
             (name, type_, color, category_id, current_user.id),
         )
 
