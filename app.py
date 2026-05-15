@@ -117,16 +117,21 @@ def register():
         if len(username) < 3:
             flash('Username must be at least 3 characters.', 'danger')
             return render_template('auth/register.html', username=username)
+
         if len(password) < 8:
             flash('Password must be at least 8 characters.', 'danger')
             return render_template('auth/register.html', username=username)
+
         if password != password_confirm:
             flash('Passwords do not match.', 'danger')
             return render_template('auth/register.html', username=username)
 
         existing = query_db(
-            "SELECT id FROM users WHERE username = ?", (username,), one=True,
+            "SELECT id FROM users WHERE username = ?",
+            (username,),
+            one=True,
         )
+
         if existing:
             flash('That username is taken.', 'danger')
             return render_template('auth/register.html', username=username)
@@ -135,6 +140,7 @@ def register():
             "INSERT INTO users (username, password_hash) VALUES (?, ?)",
             (username, generate_password_hash(password)),
         )
+
         seed_default_categories(user_id)
 
         flash('Account created. Please log in.', 'success')
@@ -153,8 +159,11 @@ def login():
         password = request.form.get('password', '')
 
         row = query_db(
-            "SELECT * FROM users WHERE username = ?", (username,), one=True,
+            "SELECT * FROM users WHERE username = ?",
+            (username,),
+            one=True,
         )
+
         if row and check_password_hash(row['password_hash'], password):
             login_user(User(row))
             return redirect(url_for('dashboard'))
@@ -180,34 +189,132 @@ def logout():
 @app.route('/accounts')
 @login_required
 def accounts_list():
-    # TODO SELECT * FROM accounts WHERE user_id = ? ORDER BY name
-    # TODO render templates/accounts/list.html
-    return render_template_placeholder('Accounts', 'accounts/list.html')
+    accounts = query_db(
+        """
+        SELECT *
+        FROM accounts
+        WHERE user_id = ?
+        ORDER BY name
+        """,
+        (current_user.id,)
+    )
+
+    return render_template('accounts/list.html', accounts=accounts)
 
 
 @app.route('/accounts/add', methods=['GET', 'POST'])
 @login_required
 def accounts_add():
     if request.method == 'POST':
-        # TODO read + validate name, type, starting_balance
-        # TODO INSERT INTO accounts (user_id, name, type, starting_balance)
-        # TODO flash + redirect to accounts_list
-        pass
-    return render_template_placeholder('Add account', 'accounts/form.html')
+        name = request.form.get('name', '').strip()
+        account_type = request.form.get('type', '').strip()
+        starting_balance = request.form.get('starting_balance', '0').strip()
+
+        if not name or not account_type:
+            flash('Account name and type are required.', 'danger')
+            return redirect(url_for('accounts_add'))
+
+        try:
+            starting_balance = float(starting_balance)
+        except ValueError:
+            flash('Starting balance must be a number.', 'danger')
+            return redirect(url_for('accounts_add'))
+
+        if starting_balance < 0:
+            flash('Starting balance cannot be negative.', 'danger')
+            return redirect(url_for('accounts_add'))
+
+        execute_db(
+            """
+            INSERT INTO accounts (user_id, name, type, starting_balance)
+            VALUES (?, ?, ?, ?)
+            """,
+            (current_user.id, name, account_type, starting_balance)
+        )
+
+        flash('Account added successfully.', 'success')
+        return redirect(url_for('accounts_list'))
+
+    return render_template('accounts/form.html', account=None)
 
 
 @app.route('/accounts/<int:account_id>/edit', methods=['GET', 'POST'])
 @login_required
 def accounts_edit(account_id):
-    # TODO fetch WHERE id = ? AND user_id = ?
-    # TODO POST: UPDATE accounts SET ... WHERE id = ? AND user_id = ?
-    return render_template_placeholder('Edit account', 'accounts/form.html')
+    account = query_db(
+        """
+        SELECT *
+        FROM accounts
+        WHERE id = ? AND user_id = ?
+        """,
+        (account_id, current_user.id),
+        one=True
+    )
+
+    if account is None:
+        flash('Account not found.', 'danger')
+        return redirect(url_for('accounts_list'))
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        account_type = request.form.get('type', '').strip()
+        starting_balance = request.form.get('starting_balance', '0').strip()
+
+        if not name or not account_type:
+            flash('Account name and type are required.', 'danger')
+            return redirect(url_for('accounts_edit', account_id=account_id))
+
+        try:
+            starting_balance = float(starting_balance)
+        except ValueError:
+            flash('Starting balance must be a number.', 'danger')
+            return redirect(url_for('accounts_edit', account_id=account_id))
+
+        if starting_balance < 0:
+            flash('Starting balance cannot be negative.', 'danger')
+            return redirect(url_for('accounts_edit', account_id=account_id))
+
+        execute_db(
+            """
+            UPDATE accounts
+            SET name = ?, type = ?, starting_balance = ?
+            WHERE id = ? AND user_id = ?
+            """,
+            (name, account_type, starting_balance, account_id, current_user.id)
+        )
+
+        flash('Account updated successfully.', 'success')
+        return redirect(url_for('accounts_list'))
+
+    return render_template('accounts/form.html', account=account)
 
 
 @app.route('/accounts/<int:account_id>/delete', methods=['POST'])
 @login_required
 def accounts_delete(account_id):
-    # TODO DELETE FROM accounts WHERE id = ? AND user_id = ?
+    account = query_db(
+        """
+        SELECT id
+        FROM accounts
+        WHERE id = ? AND user_id = ?
+        """,
+        (account_id, current_user.id),
+        one=True
+    )
+
+    if account is None:
+        flash('Account not found.', 'danger')
+        return redirect(url_for('accounts_list'))
+
+    execute_db(
+        """
+        DELETE FROM accounts
+        WHERE id = ? AND user_id = ?
+        """,
+        (account_id, current_user.id)
+    )
+
+    flash('Account deleted successfully.', 'success')
     return redirect(url_for('accounts_list'))
 
 
@@ -413,6 +520,7 @@ def categories_delete(category_id):
         "DELETE FROM categories WHERE id = ? AND user_id = ?",
         (category_id, current_user.id),
     )
+
     flash('Category deleted.', 'success')
     return redirect(url_for('categories_list'))
 
@@ -425,7 +533,10 @@ def categories_delete(category_id):
 @login_required
 def transactions_list():
     # TODO JOIN accounts + categories so names and colours show on the list
-    return render_template_placeholder('Transactions', 'transactions/list.html')
+    return render_template_placeholder(
+        'Transactions',
+        'transactions/list.html'
+    )
 
 
 @app.route('/transactions/add', methods=['GET', 'POST'])
@@ -435,8 +546,12 @@ def transactions_add():
         # TODO validate (amount > 0, account + category owned by user)
         # TODO INSERT INTO transactions
         pass
+
     # TODO load accounts + categories for dropdowns
-    return render_template_placeholder('Add transaction', 'transactions/form.html')
+    return render_template_placeholder(
+        'Add transaction',
+        'transactions/form.html'
+    )
 
 
 @app.route('/transactions/<int:transaction_id>/edit', methods=['GET', 'POST'])
@@ -444,7 +559,10 @@ def transactions_add():
 def transactions_edit(transaction_id):
     # TODO fetch by id AND user_id
     # TODO POST: UPDATE transactions SET ...
-    return render_template_placeholder('Edit transaction', 'transactions/form.html')
+    return render_template_placeholder(
+        'Edit transaction',
+        'transactions/form.html'
+    )
 
 
 @app.route('/transactions/<int:transaction_id>/delete', methods=['POST'])
@@ -456,8 +574,6 @@ def transactions_delete(transaction_id):
 
 # ============================================================================
 # 6. DASHBOARD  (Person B)
-# Names map to the SRS class diagram: getTotalBalance, getMonthlyIncome,
-# getMonthlyExpense, getExpensesByCategory.
 # ============================================================================
 
 def get_total_balance(user_id):
@@ -514,12 +630,20 @@ def render_template_placeholder(title, template_path):
 
 @app.errorhandler(404)
 def not_found(e):
-    return render_template('_error.html', code=404, message='Page not found.'), 404
+    return render_template(
+        '_error.html',
+        code=404,
+        message='Page not found.'
+    ), 404
 
 
 @app.errorhandler(500)
 def server_error(e):
-    return render_template('_error.html', code=500, message='Something broke.'), 500
+    return render_template(
+        '_error.html',
+        code=500,
+        message='Something broke.'
+    ), 500
 
 
 if __name__ == '__main__':

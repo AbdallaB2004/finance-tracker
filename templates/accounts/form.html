@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {{ "Edit Account" if account else "Add Account" }}
+{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+
+    <div class="col-md-6">
+
+        <h2 class="mb-4">
+            {{ "Edit Account" if account else "Add Account" }}
+        </h2>
+
+        <form method="post">
+
+            <div class="mb-3">
+
+                <label for="name" class="form-label">
+                    Account Name
+                </label>
+
+                <input type="text"
+                       id="name"
+                       name="name"
+                       class="form-control"
+                       value="{{ account['name'] if account else '' }}"
+                       placeholder="e.g. Main Bank"
+                       required>
+
+            </div>
+
+            <div class="mb-3">
+
+                <label for="type" class="form-label">
+                    Account Type
+                </label>
+
+                <select id="type"
+                        name="type"
+                        class="form-select"
+                        required>
+
+                    <option value="">
+                        Choose type
+                    </option>
+
+                    {% for type in ["Cash", "Bank", "Savings", "Credit Card"] %}
+
+                        <option value="{{ type }}"
+                            {% if account and account["type"] == type %}
+                                selected
+                            {% endif %}>
+
+                            {{ type }}
+
+                        </option>
+
+                    {% endfor %}
+
+                </select>
+
+            </div>
+
+            <div class="mb-3">
+
+                <label for="starting_balance"
+                       class="form-label">
+
+                    Starting Balance
+
+                </label>
+
+                <input type="number"
+                       id="starting_balance"
+                       name="starting_balance"
+                       class="form-control"
+                       step="0.01"
+                       min="0"
+                       value="{{ account['starting_balance'] if account else '0.00' }}"
+                       required>
+
+                <div class="form-text">
+
+                    Enter the balance when you began tracking this account.
+
+                </div>
+
+            </div>
+
+            <div class="d-flex gap-2">
+
+                <button type="submit"
+                        class="btn btn-primary">
+
+                    Save Account
+
+                </button>
+
+                <a href="{{ url_for('accounts_list') }}"
+                   class="btn btn-secondary">
+
+                    Cancel
+
+                </a>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+{% endblock %}

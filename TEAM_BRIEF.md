@@ -48,7 +48,7 @@ Letter labels (A, B, C, D) are just for tidy docs. They map to the section heade
 - SRS sections: Functional requirements, Use case diagram, Transactions activity diagram
 - Seed demo data script for the demo (around 40 transactions across 8 weeks)
 
-**Person C — Categories**
+**Person C — Categories** (naima)
 - Categories CRUD: routes, list and form templates
 - Default categories are seeded on registration (already in `app.py`) — C owns the user-facing CRUD
 - SRS sections: Non-functional requirements, Edit-accounts activity diagram, Risk assessment table

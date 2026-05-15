@@ -94,7 +94,7 @@ Read `TEAM_BRIEF.md` for the full list.
 | --- | --- | --- |
 | A | Abdalla Bakr (HE26492) | Lead, database helpers, auth |
 | B | Cirja Petru (HE25237) | Transactions + dashboard |
-| C | _to fill in_ | Categories |
-| D | _to fill in_ | Accounts |
+| C | Naima Islam (HE30646)| Categories |
+| D | Deividas Bandaravicius (HE26108) | Accounts |
 
 A/B/C/D is just a tidy way to map people to sections in `app.py`. Fill in C and D's names once we lock them in.
