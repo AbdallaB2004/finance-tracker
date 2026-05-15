@@ -4,92 +4,139 @@
 
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-
-    <h2>Accounts</h2>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Accounts</h2>
 
     <a href="{{ url_for('accounts_add') }}"
-       class="btn btn-primary">
-        Add Account
+       class="btn btn-primary btn-sm">
+        + Add Account
     </a>
-
 </div>
 
 {% if accounts %}
 
-<table class="table table-striped table-bordered align-middle">
+<div class="card shadow-sm mb-4">
+    <div class="card-body p-0">
 
-    <thead class="table-dark">
+        <table class="table table-hover align-middle mb-0 table-bordered">
 
-        <tr>
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 35%;">Name</th>
+                    <th style="width: 25%;">Type</th>
+                    <th style="width: 20%;" class="text-end">
+                        Starting Balance
+                    </th>
+                    <th style="width: 20%;" class="text-center">
+                        Actions
+                    </th>
+                </tr>
+            </thead>
 
-            <th>Name</th>
+            <tbody>
 
-            <th>Type</th>
+                {% for account in accounts %}
 
-            <th class="text-end">
-                Starting Balance
-            </th>
+                <tr>
+                    <td>
+                        <span class="badge rounded-pill text-bg-primary px-3 py-2">
+                            {{ account["name"] }}
+                        </span>
+                    </td>
 
-            <th>Actions</th>
+                    <td>
+                        {{ account["type"] }}
+                    </td>
 
-        </tr>
+                    <td class="text-end fw-semibold">
+                        £{{ "%.2f"|format(account["starting_balance"]) }}
+                    </td>
 
-    </thead>
+                    <td class="text-center">
+                        <div class="d-flex justify-content-center gap-2">
 
-    <tbody>
+                            <a href="{{ url_for('accounts_edit', account_id=account['id']) }}"
+                               class="btn btn-sm btn-outline-secondary">
+                                Edit
+                            </a>
 
-        {% for account in accounts %}
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-danger"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#deleteAccountModal{{ account['id'] }}">
+                                Delete
+                            </button>
 
-        <tr>
+                        </div>
+                    </td>
+                </tr>
 
-            <td>{{ account["name"] }}</td>
+                <div class="modal fade"
+                     id="deleteAccountModal{{ account['id'] }}"
+                     tabindex="-1"
+                     aria-labelledby="deleteAccountModalLabel{{ account['id'] }}"
+                     aria-hidden="true">
 
-            <td>{{ account["type"] }}</td>
+                    <div class="modal-dialog modal-dialog-centered">
 
-            <td class="text-end">
-                £{{ "%.2f"|format(account["starting_balance"]) }}
-            </td>
+                        <div class="modal-content">
 
-            <td>
+                            <div class="modal-header">
+                                <h5 class="modal-title"
+                                    id="deleteAccountModalLabel{{ account['id'] }}">
+                                    Delete account
+                                </h5>
 
-                <div class="d-flex gap-2">
+                                <button type="button"
+                                        class="btn-close"
+                                        data-bs-dismiss="modal"
+                                        aria-label="Close">
+                                </button>
+                            </div>
 
-                    <a href="{{ url_for('accounts_edit', account_id=account['id']) }}"
-                       class="btn btn-sm btn-warning">
-                        Edit
-                    </a>
+                            <div class="modal-body text-center">
+                                Are you sure you want to delete
+                                <strong>{{ account["name"] }}</strong>?
+                            </div>
 
-                    <form method="post"
-                          action="{{ url_for('accounts_delete', account_id=account['id']) }}"
-                          onsubmit="return confirm('Delete this account?');"
-                          class="m-0">
+                            <div class="modal-footer">
+                                <button type="button"
+                                        class="btn btn-outline-secondary"
+                                        data-bs-dismiss="modal">
+                                    Cancel
+                                </button>
 
-                        <button type="submit"
-                                class="btn btn-sm btn-danger">
-                            Delete
-                        </button>
+                                <form method="post"
+                                      action="{{ url_for('accounts_delete', account_id=account['id']) }}"
+                                      class="m-0">
 
-                    </form>
+                                    <button type="submit"
+                                            class="btn btn-danger">
+                                        Delete
+                                    </button>
+
+                                </form>
+                            </div>
+
+                        </div>
+
+                    </div>
 
                 </div>
 
-            </td>
+                {% endfor %}
 
-        </tr>
+            </tbody>
 
-        {% endfor %}
+        </table>
 
-    </tbody>
-
-</table>
+    </div>
+</div>
 
 {% else %}
 
 <div class="alert alert-info">
-
-    No accounts yet.
-
+    No accounts yet. Click <strong>Add Account</strong> to create your first account.
 </div>
 
 {% endif %}
