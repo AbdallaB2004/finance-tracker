@@ -72,26 +72,33 @@
                                 <div class="modal-content">
 
                                     <div class="modal-header">
-                                        <h5 class="modal-title">Delete category</h5>
+                                        <h5 class="modal-title">
+                                            {% if c.usage_count and c.usage_count > 0 %}Category in use{% else %}Delete category{% endif %}
+                                        </h5>
                                     </div>
 
-                                    <div class="modal-body">
-                                        Are you sure you want to delete
-                                        <strong>{{ c.name }}</strong>?
+                                    <div class="modal-body text-start">
+                                        {% if c.usage_count and c.usage_count > 0 %}
+                                        The category <strong>{{ c.name }}</strong> is linked to <strong>{{ c.usage_count }}</strong> transactions and cannot be deleted.
+                                        {% else %}
+                                        Are you sure you want to delete <strong>{{ c.name }}</strong>?
+                                        {% endif %}
                                     </div>
 
                                     <div class="modal-footer">
                                         <button class="btn btn-outline-secondary"
                                                 data-bs-dismiss="modal">
-                                            Cancel
+                                            {% if c.usage_count and c.usage_count > 0 %}Close{% else %}Cancel{% endif %}
                                         </button>
 
+                                        {% if not c.usage_count or c.usage_count == 0 %}
                                         <form method="POST"
                                               action="{{ url_for('categories_delete', category_id=c.id) }}">
                                             <button class="btn btn-danger">
                                                 Delete
                                             </button>
                                         </form>
+                                        {% endif %}
                                     </div>
 
                                 </div>

@@ -25,7 +25,7 @@
 
                     <div class="mb-3">
                         <label class="form-label">Type</label>
-                        <select name="type" class="form-select" required>
+                        <select name="type" class="form-select" {% if category and category.usage_count and category.usage_count > 0 %}disabled{% endif %} required>
                             {% for t in types %}
                             <option value="{{ t }}"
                                 {% if category and category.type == t %}selected{% endif %}>
@@ -33,6 +33,12 @@
                             </option>
                             {% endfor %}
                         </select>
+                        {% if category and category.usage_count and category.usage_count > 0 %}
+                        <input type="hidden" name="type" value="{{ category.type }}">
+                        <div class="form-text text-warning mt-1">
+                            <i class="bi bi-lock-fill"></i> Type is locked because transactions are using this category.
+                        </div>
+                        {% endif %}
                     </div>
 
                     <div class="mb-3">
