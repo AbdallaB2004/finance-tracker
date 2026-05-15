@@ -317,7 +317,7 @@ def accounts_delete(account_id):
         one=True
     )
 
-    if linked_transaction:
+    if linked_transaction and linked_transaction['count'] > 0:
         flash(
             'This account cannot be deleted because it is linked to existing transactions.',
             'warning'
