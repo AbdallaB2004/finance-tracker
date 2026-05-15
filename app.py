@@ -459,7 +459,12 @@ def categories_add():
 @login_required
 def categories_edit(category_id):
     category = query_db(
-        "SELECT * FROM categories WHERE id = ? AND user_id = ?",
+        """
+        SELECT id, user_id, name, type, color,
+        (SELECT COUNT(*) FROM transactions t WHERE t.category_id = categories.id) as usage_count
+        FROM categories 
+        WHERE id = ? AND user_id = ?
+        """,
         (category_id, current_user.id),
         one=True,
     )
@@ -492,6 +497,15 @@ def categories_edit(category_id):
 
         if type_ not in CATEGORY_TYPES:
             flash('Type must be income or expense.', 'danger')
+            return render_template(
+                'categories/form.html',
+                category=category,
+                types=CATEGORY_TYPES,
+                categories=categories
+            )
+
+        if type_ != category['type'] and category['usage_count'] > 0:
+            flash('Cannot change category type while transactions are tied to it.', 'danger')
             return render_template(
                 'categories/form.html',
                 category=category,
@@ -533,6 +547,16 @@ def categories_edit(category_id):
 @app.route('/categories/<int:category_id>/delete', methods=['POST'])
 @login_required
 def categories_delete(category_id):
+    usage = query_db(
+        "SELECT COUNT(*) as count FROM transactions WHERE category_id = ? AND user_id = ?",
+        (category_id, current_user.id),
+        one=True,
+    )
+
+    if usage and usage['count'] > 0:
+        flash('Cannot delete category with associated transactions.', 'danger')
+        return redirect(url_for('categories_list'))
+
     execute_db(
         "DELETE FROM categories WHERE id = ? AND user_id = ?",
         (category_id, current_user.id),
