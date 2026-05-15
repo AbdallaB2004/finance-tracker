@@ -117,16 +117,21 @@ def register():
         if len(username) < 3:
             flash('Username must be at least 3 characters.', 'danger')
             return render_template('auth/register.html', username=username)
+
         if len(password) < 8:
             flash('Password must be at least 8 characters.', 'danger')
             return render_template('auth/register.html', username=username)
+
         if password != password_confirm:
             flash('Passwords do not match.', 'danger')
             return render_template('auth/register.html', username=username)
 
         existing = query_db(
-            "SELECT id FROM users WHERE username = ?", (username,), one=True,
+            "SELECT id FROM users WHERE username = ?",
+            (username,),
+            one=True,
         )
+
         if existing:
             flash('That username is taken.', 'danger')
             return render_template('auth/register.html', username=username)
@@ -135,6 +140,7 @@ def register():
             "INSERT INTO users (username, password_hash) VALUES (?, ?)",
             (username, generate_password_hash(password)),
         )
+
         seed_default_categories(user_id)
 
         flash('Account created. Please log in.', 'success')
@@ -153,8 +159,11 @@ def login():
         password = request.form.get('password', '')
 
         row = query_db(
-            "SELECT * FROM users WHERE username = ?", (username,), one=True,
+            "SELECT * FROM users WHERE username = ?",
+            (username,),
+            one=True,
         )
+
         if row and check_password_hash(row['password_hash'], password):
             login_user(User(row))
             return redirect(url_for('dashboard'))
@@ -175,26 +184,6 @@ def logout():
 
 # ============================================================================
 # 3. ACCOUNTS CRUD  (Person D)
-# ============================================================================
-
-from datetime import datetime
-
-from flask import (
-    render_template,
-    request,
-    redirect,
-    url_for,
-    flash
-)
-
-from flask_login import (
-    login_required,
-    current_user
-)
-
-
-# ============================================================================
-# ACCOUNTS MODULE
 # ============================================================================
 
 @app.route('/accounts')
@@ -327,10 +316,291 @@ def accounts_delete(account_id):
 
     flash('Account deleted successfully.', 'success')
     return redirect(url_for('accounts_list'))
+
+
+# ============================================================================
+# 4. CATEGORIES CRUD  (Person C)
+# ============================================================================
+
+CATEGORY_TYPES = ['income', 'expense']
+
+DEFAULT_COLOR_PALETTE = [
+    '#198754', '#0d6efd', '#6f42c1', '#d63384',
+    '#fd7e14', '#20c997', '#ffc107', '#6c757d'
+]
+
+
+def _color_distance(c1, c2):
+    def hex_to_rgb(h):
+        h = h.lstrip('#')
+        return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+
+    r1, g1, b1 = hex_to_rgb(c1)
+    r2, g2, b2 = hex_to_rgb(c2)
+
+    return abs(r1 - r2) + abs(g1 - g2) + abs(b1 - b2)
+
+
+def get_next_color(user_id):
+    used = query_db(
+        "SELECT color FROM categories WHERE user_id = ?",
+        (user_id,)
+    ) or []
+
+    used_colors = [c['color'] for c in used]
+
+    for color in DEFAULT_COLOR_PALETTE:
+        if all(_color_distance(color, u) > 120 for u in used_colors):
+            return color
+
+    return DEFAULT_COLOR_PALETTE[0]
+
+
+@app.route('/categories')
+@login_required
+def categories_list():
+    categories = query_db(
+        """
+        SELECT id, name, type, color,
+        (
+            SELECT COUNT(*)
+            FROM transactions t
+            WHERE t.category_id = categories.id
+        ) as usage_count
+        FROM categories
+        WHERE user_id = ?
+        ORDER BY type, name
+        """,
+        (current_user.id,),
+    )
+
+    return render_template('categories/list.html', categories=categories)
+
+
+@app.route('/categories/add', methods=['GET', 'POST'])
+@login_required
+def categories_add():
+    categories = query_db(
+        "SELECT name, color FROM categories WHERE user_id = ?",
+        (current_user.id,),
+    )
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        type_ = request.form.get('type', '').strip()
+
+        color = request.form.get('color')
+
+        if not color or color.strip() == '':
+            color = get_next_color(current_user.id)
+
+        if not name:
+            flash('Category name is required.', 'danger')
+            return render_template(
+                'categories/form.html',
+                category=None,
+                types=CATEGORY_TYPES,
+                categories=categories
+            )
+
+        if type_ not in CATEGORY_TYPES:
+            flash('Type must be income or expense.', 'danger')
+            return render_template(
+                'categories/form.html',
+                category=None,
+                types=CATEGORY_TYPES,
+                categories=categories
+            )
+
+        existing = query_db(
+            """
+            SELECT id
+            FROM categories
+            WHERE user_id = ? AND LOWER(name) = LOWER(?)
+            """,
+            (current_user.id, name),
+            one=True,
+        )
+
+        if existing:
+            flash('Category already exists.', 'danger')
+            return render_template(
+                'categories/form.html',
+                category=None,
+                types=CATEGORY_TYPES,
+                categories=categories
+            )
+
+        execute_db(
+            """
+            INSERT INTO categories (user_id, name, type, color)
+            VALUES (?, ?, ?, ?)
+            """,
+            (current_user.id, name, type_, color),
+        )
+
+        flash('Category added.', 'success')
+        return redirect(url_for('categories_list'))
+
+    return render_template(
+        'categories/form.html',
+        category=None,
+        types=CATEGORY_TYPES,
+        categories=categories
+    )
+
+
+@app.route('/categories/<int:category_id>/edit', methods=['GET', 'POST'])
+@login_required
+def categories_edit(category_id):
+    category = query_db(
+        """
+        SELECT *
+        FROM categories
+        WHERE id = ? AND user_id = ?
+        """,
+        (category_id, current_user.id),
+        one=True,
+    )
+
+    if not category:
+        flash('Category not found.', 'danger')
+        return redirect(url_for('categories_list'))
+
+    categories = query_db(
+        "SELECT name, color FROM categories WHERE user_id = ?",
+        (current_user.id,),
+    )
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        type_ = request.form.get('type', '').strip()
+
+        color = request.form.get('color')
+
+        if not color or color.strip() == '':
+            color = get_next_color(current_user.id)
+
+        if not name:
+            flash('Category name is required.', 'danger')
+            return render_template(
+                'categories/form.html',
+                category=category,
+                types=CATEGORY_TYPES,
+                categories=categories
+            )
+
+        if type_ not in CATEGORY_TYPES:
+            flash('Type must be income or expense.', 'danger')
+            return render_template(
+                'categories/form.html',
+                category=category,
+                types=CATEGORY_TYPES,
+                categories=categories
+            )
+
+        existing = query_db(
+            """
+            SELECT id
+            FROM categories
+            WHERE user_id = ?
+            AND LOWER(name) = LOWER(?)
+            AND id != ?
+            """,
+            (current_user.id, name, category_id),
+            one=True,
+        )
+
+        if existing:
+            flash('Category already exists.', 'danger')
+            return render_template(
+                'categories/form.html',
+                category=category,
+                types=CATEGORY_TYPES,
+                categories=categories
+            )
+
+        execute_db(
+            """
+            UPDATE categories
+            SET name = ?, type = ?, color = ?
+            WHERE id = ? AND user_id = ?
+            """,
+            (name, type_, color, category_id, current_user.id),
+        )
+
+        flash('Category updated.', 'success')
+        return redirect(url_for('categories_list'))
+
+    return render_template(
+        'categories/form.html',
+        category=category,
+        types=CATEGORY_TYPES,
+        categories=categories
+    )
+
+
+@app.route('/categories/<int:category_id>/delete', methods=['POST'])
+@login_required
+def categories_delete(category_id):
+    execute_db(
+        "DELETE FROM categories WHERE id = ? AND user_id = ?",
+        (category_id, current_user.id),
+    )
+
+    flash('Category deleted.', 'success')
+    return redirect(url_for('categories_list'))
+
+
+# ============================================================================
+# 5. TRANSACTIONS CRUD  (Person B)
+# ============================================================================
+
+@app.route('/transactions')
+@login_required
+def transactions_list():
+    # TODO JOIN accounts + categories so names and colours show on the list
+    return render_template_placeholder(
+        'Transactions',
+        'transactions/list.html'
+    )
+
+
+@app.route('/transactions/add', methods=['GET', 'POST'])
+@login_required
+def transactions_add():
+    if request.method == 'POST':
+        # TODO validate (amount > 0, account + category owned by user)
+        # TODO INSERT INTO transactions
+        pass
+
+    # TODO load accounts + categories for dropdowns
+    return render_template_placeholder(
+        'Add transaction',
+        'transactions/form.html'
+    )
+
+
+@app.route('/transactions/<int:transaction_id>/edit', methods=['GET', 'POST'])
+@login_required
+def transactions_edit(transaction_id):
+    # TODO fetch by id AND user_id
+    # TODO POST: UPDATE transactions SET ...
+    return render_template_placeholder(
+        'Edit transaction',
+        'transactions/form.html'
+    )
+
+
+@app.route('/transactions/<int:transaction_id>/delete', methods=['POST'])
+@login_required
+def transactions_delete(transaction_id):
+    # TODO DELETE FROM transactions WHERE id = ? AND user_id = ?
+    return redirect(url_for('transactions_list'))
+
+
 # ============================================================================
 # 6. DASHBOARD  (Person B)
-# Names map to the SRS class diagram: getTotalBalance, getMonthlyIncome,
-# getMonthlyExpense, getExpensesByCategory.
 # ============================================================================
 
 def get_total_balance(user_id):
@@ -387,12 +657,20 @@ def render_template_placeholder(title, template_path):
 
 @app.errorhandler(404)
 def not_found(e):
-    return render_template('_error.html', code=404, message='Page not found.'), 404
+    return render_template(
+        '_error.html',
+        code=404,
+        message='Page not found.'
+    ), 404
 
 
 @app.errorhandler(500)
 def server_error(e):
-    return render_template('_error.html', code=500, message='Something broke.'), 500
+    return render_template(
+        '_error.html',
+        code=500,
+        message='Something broke.'
+    ), 500
 
 
 if __name__ == '__main__':
