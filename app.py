@@ -569,267 +569,429 @@ def categories_delete(category_id):
 # ============================================================================
 # 5. TRANSACTIONS CRUD  (Person B)
 # ============================================================================
+
+# This route shows the full list of transactions for the logged-in user.
+# @app.route tells Flask: when someone visits /transactions, run this function.
+# @login_required means: if the user is not logged in, redirect them to login first.
 @app.route('/transactions')
 @login_required
 def transactions_list():
+    """Show all transactions for the logged-in user, newest first."""
+
+    # Go into the database and fetch all transactions that belong to the logged-in user.
+    # We also JOIN with the accounts and categories tables so we get the account name
+    # and category name/colour — otherwise we would only get ID numbers.
+    # ORDER BY date DESC means newest transactions appear at the top.
     transactions = query_db(
         """
-        SELECT
-            t.id,
-            t.amount,
-            t.type,
-            t.date,
-            t.description,
-            a.name AS account_name,
-            c.name AS category_name
+        SELECT t.id, t.amount, t.type, t.date, t.description,
+               a.name AS account_name,
+               c.name AS category_name,
+               c.color AS category_color
         FROM transactions t
-        JOIN accounts a ON t.account_id = a.id
-        JOIN categories c ON t.category_id = c.id
+        JOIN accounts a ON a.id = t.account_id
+        JOIN categories c ON c.id = t.category_id
         WHERE t.user_id = ?
-        ORDER BY t.date DESC
+        ORDER BY t.date DESC, t.created_at DESC
         """,
-        (current_user.id,)
+        (current_user.id,),
     )
 
-    return render_template(
-        'transactions/list.html',
-        transactions=transactions
-    )
+    # Send the list of transactions to the HTML template so it can display them.
+    return render_template('transactions/list.html', transactions=transactions)
 
 
+# This route handles the Add Transaction page.
+# methods=['GET', 'POST'] means it handles two situations:
+#   GET  = user just opened the form (show the empty form)
+#   POST = user filled in the form and clicked submit (save the data)
 @app.route('/transactions/add', methods=['GET', 'POST'])
 @login_required
 def transactions_add():
+    """Show the add-transaction form (GET) and save a new transaction (POST)."""
+
+    # Load the user's accounts from the database so we can show them in a dropdown.
     accounts = query_db(
-        """
-        SELECT id, name
-        FROM accounts
-        WHERE user_id = ?
-        ORDER BY name
-        """,
-        (current_user.id,)
+        "SELECT id, name FROM accounts WHERE user_id = ? ORDER BY name",
+        (current_user.id,),
     )
 
+    # Load the user's categories from the database so we can show them in a dropdown.
     categories = query_db(
-        """
-        SELECT id, name
-        FROM categories
-        WHERE user_id = ?
-        ORDER BY name
-        """,
-        (current_user.id,)
+        "SELECT id, name, type FROM categories WHERE user_id = ? ORDER BY type, name",
+        (current_user.id,),
     )
 
+    # Only run the code below if the user actually submitted the form (clicked the button).
     if request.method == 'POST':
-        amount = request.form.get('amount', '').strip()
+
+        # Read each field the user typed or selected in the form.
+        # .strip() removes any accidental spaces at the start or end.
+        amount_raw = request.form.get('amount', '').strip()
         type_ = request.form.get('type', '').strip()
         date = request.form.get('date', '').strip()
+        account_id_raw = request.form.get('account_id', '').strip()
+        category_id_raw = request.form.get('category_id', '').strip()
         description = request.form.get('description', '').strip()
-        account_id = request.form.get('account_id', '').strip()
-        category_id = request.form.get('category_id', '').strip()
 
-        if not amount or not type_ or not date or not account_id or not category_id:
-            flash('Amount, type, date, account and category are required.', 'danger')
-            return redirect(url_for('transactions_add'))
+        # --- Validation: check the data before saving anything ---
 
-        try:
-            amount = float(amount)
-        except ValueError:
-            flash('Amount must be a number.', 'danger')
-            return redirect(url_for('transactions_add'))
+        # Start with no error.
+        error = None
 
-        if amount <= 0:
-            flash('Amount must be greater than 0.', 'danger')
-            return redirect(url_for('transactions_add'))
+        # Check the amount field is not empty.
+        if not amount_raw:
+            error = 'Amount is required.'
+        else:
+            # Try to convert the amount to a decimal number.
+            # If the user typed letters, float() will fail and we catch it with ValueError.
+            try:
+                amount = float(amount_raw)
+                if amount <= 0:
+                    error = 'Amount must be greater than zero.'
+            except ValueError:
+                error = 'Amount must be a number.'
 
+        # Check the type is exactly 'income' or 'expense' — nothing else is allowed.
+        if not error and type_ not in ('income', 'expense'):
+            error = 'Type must be income or expense.'
+
+        # Check the date field is not empty.
+        if not error and not date:
+            error = 'Date is required.'
+
+        # Security check: make sure the chosen account actually belongs to this user.
+        # This stops someone from manually sending a different user's account ID.
+        if not error:
+            account = query_db(
+                "SELECT id FROM accounts WHERE id = ? AND user_id = ?",
+                (account_id_raw, current_user.id),
+                one=True,
+            )
+            if not account:
+                error = 'Invalid account.'
+
+        # Security check: same thing for the category.
+        if not error:
+            category = query_db(
+                "SELECT id FROM categories WHERE id = ? AND user_id = ?",
+                (category_id_raw, current_user.id),
+                one=True,
+            )
+            if not category:
+                error = 'Invalid category.'
+
+        # If any validation check above found a problem, show the error message
+        # and send the user back to the form so they can fix it.
+        if error:
+            flash(error, 'danger')
+            return render_template(
+                'transactions/form.html',
+                transaction=None,
+                accounts=accounts,
+                categories=categories,
+            )
+
+        # All checks passed — save the new transaction to the database.
         execute_db(
             """
             INSERT INTO transactions
-                (user_id, account_id, category_id, amount, type, description, date)
+                (user_id, account_id, category_id, amount, type, date, description)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (
-                current_user.id,
-                account_id,
-                category_id,
-                amount,
-                type_,
-                description,
-                date
-            )
+            (current_user.id, int(account_id_raw), int(category_id_raw),
+             amount, type_, date, description),
         )
 
-        flash('Transaction added successfully.', 'success')
+        # Show a green success message and send the user back to the transactions list.
+        flash('Transaction added.', 'success')
         return redirect(url_for('transactions_list'))
 
+    # If the user just opened the page (GET), show the empty form.
     return render_template(
         'transactions/form.html',
         transaction=None,
         accounts=accounts,
         categories=categories,
-        form_title='Add Transaction',
-        button_text='Save Transaction'
     )
 
 
+# This route handles the Edit Transaction page.
+# <int:transaction_id> means the URL contains the ID of the transaction to edit,
+# for example: /transactions/3/edit
 @app.route('/transactions/<int:transaction_id>/edit', methods=['GET', 'POST'])
 @login_required
 def transactions_edit(transaction_id):
+    """Show the edit form pre-filled with existing data (GET) and save changes (POST)."""
+
+    # Fetch the transaction we want to edit.
+    # We check BOTH the transaction ID and the user_id so a user
+    # cannot edit another user's transactions by changing the URL.
     transaction = query_db(
-        """
-        SELECT *
-        FROM transactions
-        WHERE id = ? AND user_id = ?
-        """,
+        "SELECT * FROM transactions WHERE id = ? AND user_id = ?",
         (transaction_id, current_user.id),
-        one=True
+        one=True,
     )
 
-    if transaction is None:
+    # If the transaction does not exist or belongs to someone else, show an error
+    # and send the user back to the list.
+    if not transaction:
         flash('Transaction not found.', 'danger')
         return redirect(url_for('transactions_list'))
 
+    # Load accounts and categories for the dropdowns (same as the add form).
     accounts = query_db(
-        """
-        SELECT id, name
-        FROM accounts
-        WHERE user_id = ?
-        ORDER BY name
-        """,
-        (current_user.id,)
+        "SELECT id, name FROM accounts WHERE user_id = ? ORDER BY name",
+        (current_user.id,),
     )
-
     categories = query_db(
-        """
-        SELECT id, name
-        FROM categories
-        WHERE user_id = ?
-        ORDER BY name
-        """,
-        (current_user.id,)
+        "SELECT id, name, type FROM categories WHERE user_id = ? ORDER BY type, name",
+        (current_user.id,),
     )
 
+    # Only run the code below if the user submitted the form.
     if request.method == 'POST':
-        amount = request.form.get('amount', '').strip()
+
+        # Read the updated values from the form.
+        amount_raw = request.form.get('amount', '').strip()
         type_ = request.form.get('type', '').strip()
         date = request.form.get('date', '').strip()
+        account_id_raw = request.form.get('account_id', '').strip()
+        category_id_raw = request.form.get('category_id', '').strip()
         description = request.form.get('description', '').strip()
-        account_id = request.form.get('account_id', '').strip()
-        category_id = request.form.get('category_id', '').strip()
 
-        if not amount or not type_ or not date or not account_id or not category_id:
-            flash('Amount, type, date, account and category are required.', 'danger')
-            return redirect(url_for('transactions_edit', transaction_id=transaction_id))
+        # --- Validation: same checks as the add form ---
+        error = None
 
-        try:
-            amount = float(amount)
-        except ValueError:
-            flash('Amount must be a number.', 'danger')
-            return redirect(url_for('transactions_edit', transaction_id=transaction_id))
+        if not amount_raw:
+            error = 'Amount is required.'
+        else:
+            try:
+                amount = float(amount_raw)
+                if amount <= 0:
+                    error = 'Amount must be greater than zero.'
+            except ValueError:
+                error = 'Amount must be a number.'
 
-        if amount <= 0:
-            flash('Amount must be greater than 0.', 'danger')
-            return redirect(url_for('transactions_edit', transaction_id=transaction_id))
+        if not error and type_ not in ('income', 'expense'):
+            error = 'Type must be income or expense.'
 
+        if not error and not date:
+            error = 'Date is required.'
+
+        if not error:
+            account = query_db(
+                "SELECT id FROM accounts WHERE id = ? AND user_id = ?",
+                (account_id_raw, current_user.id),
+                one=True,
+            )
+            if not account:
+                error = 'Invalid account.'
+
+        if not error:
+            category = query_db(
+                "SELECT id FROM categories WHERE id = ? AND user_id = ?",
+                (category_id_raw, current_user.id),
+                one=True,
+            )
+            if not category:
+                error = 'Invalid category.'
+
+        # If any check failed, show the error and send the user back to the form.
+        if error:
+            flash(error, 'danger')
+            return render_template(
+                'transactions/form.html',
+                transaction=transaction,
+                accounts=accounts,
+                categories=categories,
+            )
+
+        # All checks passed — update the existing transaction in the database.
+        # UPDATE overwrites the old values with the new ones.
+        # WHERE id = ? AND user_id = ? is a final security check.
         execute_db(
             """
             UPDATE transactions
-            SET account_id = ?,
-                category_id = ?,
-                amount = ?,
-                type = ?,
-                description = ?,
-                date = ?
+            SET account_id = ?, category_id = ?, amount = ?,
+                type = ?, date = ?, description = ?
             WHERE id = ? AND user_id = ?
             """,
-            (
-                account_id,
-                category_id,
-                amount,
-                type_,
-                description,
-                date,
-                transaction_id,
-                current_user.id
-            )
+            (int(account_id_raw), int(category_id_raw), amount,
+             type_, date, description, transaction_id, current_user.id),
         )
 
-        flash('Transaction updated successfully.', 'success')
+        # Show a green success message and send the user back to the list.
+        flash('Transaction updated.', 'success')
         return redirect(url_for('transactions_list'))
 
+    # If the user just opened the page (GET), show the form pre-filled
+    # with the existing transaction data.
     return render_template(
         'transactions/form.html',
         transaction=transaction,
         accounts=accounts,
         categories=categories,
-        form_title='Edit Transaction',
-        button_text='Update Transaction'
     )
 
 
+# This route deletes a transaction.
+# methods=['POST'] means it only accepts a form submission — NOT a URL visit.
+# This prevents accidental deletion if someone just opens a link.
 @app.route('/transactions/<int:transaction_id>/delete', methods=['POST'])
 @login_required
 def transactions_delete(transaction_id):
-    transaction = query_db(
-        """
-        SELECT id
-        FROM transactions
-        WHERE id = ? AND user_id = ?
-        """,
-        (transaction_id, current_user.id),
-        one=True
-    )
+    """Delete a transaction belonging to the logged-in user."""
 
-    if transaction is None:
-        flash('Transaction not found.', 'danger')
-        return redirect(url_for('transactions_list'))
-
+    # Delete the transaction from the database.
+    # WHERE id = ? AND user_id = ? makes sure users can only delete their own transactions.
     execute_db(
-        """
-        DELETE FROM transactions
-        WHERE id = ? AND user_id = ?
-        """,
-        (transaction_id, current_user.id)
+        "DELETE FROM transactions WHERE id = ? AND user_id = ?",
+        (transaction_id, current_user.id),
     )
 
-    flash('Transaction deleted successfully.', 'success')
+    # Show a green success message and send the user back to the transactions list.
+    flash('Transaction deleted.', 'success')
     return redirect(url_for('transactions_list'))
+
 
 # ============================================================================
 # 6. DASHBOARD  (Person B)
 # ============================================================================
 
 def get_total_balance(user_id):
-    # TODO SUM(starting_balance) + SUM(income) - SUM(expenses)
-    return 0.0
+    """Calculate the user's total balance across all accounts.
+
+    Formula: sum of all account starting balances + all income ever - all expenses ever.
+    """
+
+    # Add up the starting balance of every account the user has.
+    # COALESCE(..., 0) means: if there are no rows, return 0 instead of NULL.
+    base = query_db(
+        "SELECT COALESCE(SUM(starting_balance), 0) AS total FROM accounts WHERE user_id = ?",
+        (user_id,),
+        one=True,
+    )
+
+    # Add up every income transaction the user has ever logged.
+    income = query_db(
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE user_id = ? AND type = 'income'",
+        (user_id,),
+        one=True,
+    )
+
+    # Add up every expense transaction the user has ever logged.
+    expense = query_db(
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM transactions WHERE user_id = ? AND type = 'expense'",
+        (user_id,),
+        one=True,
+    )
+
+    # Return: starting balances + all income - all expenses = current total balance.
+    return (base['total'] or 0.0) + (income['total'] or 0.0) - (expense['total'] or 0.0)
 
 
 def get_monthly_income(user_id, month_start):
-    # TODO SUM(amount) WHERE type='income' AND date >= month_start
-    return 0.0
+    """Return the total income for the current month only.
+
+    month_start is the first day of the current month, e.g. '2026-05-01'.
+    Only transactions on or after that date are counted.
+    """
+
+    # Sum all income transactions from the start of this month onwards.
+    row = query_db(
+        """
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM transactions
+        WHERE user_id = ? AND type = 'income' AND date >= ?
+        """,
+        (user_id, month_start),
+        one=True,
+    )
+    return row['total'] if row else 0.0
 
 
 def get_monthly_expense(user_id, month_start):
-    # TODO SUM(amount) WHERE type='expense' AND date >= month_start
-    return 0.0
+    """Return the total expenses for the current month only.
+
+    month_start is the first day of the current month, e.g. '2026-05-01'.
+    Only transactions on or after that date are counted.
+    """
+
+    # Sum all expense transactions from the start of this month onwards.
+    row = query_db(
+        """
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM transactions
+        WHERE user_id = ? AND type = 'expense' AND date >= ?
+        """,
+        (user_id, month_start),
+        one=True,
+    )
+    return row['total'] if row else 0.0
 
 
 def get_expenses_by_category(user_id, month_start):
-    # TODO GROUP BY category for the doughnut chart
-    return []
+    """Return this month's expenses grouped by category for the doughnut chart.
+
+    Each row contains the category name, its colour, and the total spent in it.
+    """
+
+    # GROUP BY c.id groups all transactions under the same category together
+    # and adds up their amounts into one total per category.
+    # ORDER BY total DESC puts the biggest spending category first in the chart.
+    return query_db(
+        """
+        SELECT c.name, c.color, COALESCE(SUM(t.amount), 0) AS total
+        FROM transactions t
+        JOIN categories c ON c.id = t.category_id
+        WHERE t.user_id = ? AND t.type = 'expense' AND t.date >= ?
+        GROUP BY c.id
+        ORDER BY total DESC
+        """,
+        (user_id, month_start),
+    )
 
 
 def get_recent_transactions(user_id, limit=5):
-    # TODO same JOIN as transactions_list, LIMIT ?
-    return []
+    """Return the most recent transactions for the dashboard preview table.
+
+    limit=5 means only the last 5 transactions are returned by default.
+    """
+
+    # Same query as transactions_list but LIMIT restricts it to the last few rows.
+    return query_db(
+        """
+        SELECT t.id, t.amount, t.type, t.date, t.description,
+               a.name AS account_name,
+               c.name AS category_name,
+               c.color AS category_color
+        FROM transactions t
+        JOIN accounts a ON a.id = t.account_id
+        JOIN categories c ON c.id = t.category_id
+        WHERE t.user_id = ?
+        ORDER BY t.date DESC, t.created_at DESC
+        LIMIT ?
+        """,
+        (user_id, limit),
+    )
 
 
+# This is the main dashboard page — the first thing users see after logging in.
+# @app.route('/') means it runs when someone visits the root of the site.
 @app.route('/')
 @login_required
 def dashboard():
+    """Show the dashboard with balance summary, chart and recent transactions."""
+
+    # Get today's date and calculate the first day of the current month.
+    # For example: if today is 16 May 2026, month_start becomes '2026-05-01'.
+    # This is passed to the helper functions so they only count this month's data.
     today = datetime.today()
     month_start = today.replace(day=1).strftime('%Y-%m-%d')
 
+    # Call each helper function to get the numbers,
+    # then pass them all to the dashboard HTML template to display on the page.
     return render_template(
         'dashboard.html',
         total_balance=get_total_balance(current_user.id),
@@ -838,6 +1000,7 @@ def dashboard():
         recent_transactions=get_recent_transactions(current_user.id, limit=5),
         expense_breakdown=get_expenses_by_category(current_user.id, month_start),
     )
+
 
 
 # ============================================================================
