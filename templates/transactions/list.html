@@ -1,1 +1,142 @@
+{% extends 'base.html' %}
+{# Use base.html as the outer layout (navbar, footer, etc).
+   Everything we write goes INSIDE that shared layout. #}
+
+{% block title %}Transactions{% endblock %}
+{# Sets the browser tab title to "Transactions" #}
+
+{% block content %}
+<div class="container py-4">
+{# container = Bootstrap class that centres the content.
+   py-4 = adds vertical padding (space above and below). #}
+
+  {# --- Page header ---
+     d-flex = puts the heading and button side by side on the same line.
+     justify-content-between = pushes them to opposite ends (heading left, button right). #}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Transactions</h1>
+    {# Button that takes the user to the Add Transaction page. #}
+    <a href="{{ url_for('transactions_add') }}" class="btn btn-primary">+ Add Transaction</a>
+  </div>
+
+  {# --- Flash messages ---
+     These are one-time notifications set in Python (e.g. "Transaction added." or error messages).
+     get_flashed_messages() fetches them. with_categories=true gives us the colour type too. #}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        {# Show each message as a coloured alert box.
+           alert-{{ category }} becomes alert-success (green) or alert-danger (red).
+           The X button lets the user close the message. #}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {# --- Main content ---
+     Check if there are any transactions to display.
+     'transactions' is the list passed in from Python (transactions_list function). #}
+  {% if transactions %}
+
+    {# table-responsive adds a horizontal scrollbar on small screens
+       so the table doesn't break the layout. #}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+      {# table-hover = rows highlight when you move the mouse over them.
+         align-middle = content in each cell is vertically centred. #}
+
+        <thead class="table-light">
+        {# thead = the header row of the table. table-light gives it a light grey background. #}
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Account</th>
+            <th>Category</th>
+            <th>Type</th>
+            <th class="text-end">Amount</th>  {# text-end = right-aligned #}
+            <th></th>  {# Empty column for the Edit/Delete buttons #}
+          </tr>
+        </thead>
+
+        <tbody>
+          {# Loop through every transaction and create one table row per transaction. #}
+          {% for t in transactions %}
+            <tr>
+
+              {# Date column. text-nowrap stops the date wrapping onto two lines. #}
+              <td class="text-nowrap">{{ t['date'] }}</td>
+
+              {# Description column. If no description, show a dash. #}
+              <td>{{ t['description'] or '—' }}</td>
+
+              {# Account name (e.g. "Lloyds Current"). #}
+              <td>{{ t['account_name'] }}</td>
+
+              {# Category shown as a coloured pill badge.
+                 The colour comes from the category's colour stored in the database. #}
+              <td>
+                <span class="badge rounded-pill"
+                      style="background-color: {{ t['category_color'] }};">
+                  {{ t['category_name'] }}
+                </span>
+              </td>
+
+              {# Type column — shows a green "Income" badge or red "Expense" badge. #}
+              <td>
+                {% if t['type'] == 'income' %}
+                  <span class="badge bg-success">Income</span>
+                {% else %}
+                  <span class="badge bg-danger">Expense</span>
+                {% endif %}
+              </td>
+
+              {# Amount column — green with a + sign for income, red with a − for expense.
+                 '%.2f' formats the number to always show 2 decimal places. #}
+              <td class="text-end text-nowrap fw-semibold
+                {% if t['type'] == 'income' %}text-success{% else %}text-danger{% endif %}">
+                {% if t['type'] == 'income' %}+{% else %}−{% endif %}
+                £{{ '%.2f' | format(t['amount']) }}
+              </td>
+
+              {# Action buttons column — Edit and Delete for each row. #}
+              <td class="text-end text-nowrap">
+
+                {# Edit button — links to the edit page for this transaction. #}
+                <a href="{{ url_for('transactions_edit', transaction_id=t['id']) }}"
+                   class="btn btn-outline-secondary btn-sm">Edit</a>
+
+                {# Delete button — wrapped in a form because delete must be a POST request.
+                   onsubmit="return confirm(...)" shows a popup asking the user to confirm
+                   before actually deleting — prevents accidental deletions. #}
+                <form method="POST"
+                      action="{{ url_for('transactions_delete', transaction_id=t['id']) }}"
+                      class="d-inline"
+                      onsubmit="return confirm('Delete this transaction?');">
+                  <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                </form>
+
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+
+      </table>
+    </div>
+
+  {% else %}
+    {# If there are no transactions yet, show a friendly empty state message
+       with a button to add the first one. #}
+    <div class="text-center py-5 text-muted">
+      <p class="mb-3">No transactions yet.</p>
+      <a href="{{ url_for('transactions_add') }}" class="btn btn-primary">Add your first transaction</a>
+    </div>
+  {% endif %}
+
+</div>
+{# End of main container #}
+
+{% endblock %}
 
