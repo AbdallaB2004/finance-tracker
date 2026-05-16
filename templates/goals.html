@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Your Goal{% endblock %}
+
+{% block content %}
+<div class="entry-screen">
+
+    <div class="welcome-card">
+        <i class="bi bi-graph-up-arrow entry-icon"></i>
+
+        <h1>What do you want help with?</h1>
+        <p>Choose one goal to personalize your FinTrack experience.</p>
+
+        <form method="POST" class="goal-form">
+
+            <button type="submit" name="goal" value="Spend less" class="goal-option">
+                <i class="bi bi-cash-coin"></i>
+                Spend less
+            </button>
+
+            <button type="submit" name="goal" value="Save money" class="goal-option">
+                <i class="bi bi-piggy-bank"></i>
+                Save money
+            </button>
+
+            <button type="submit" name="goal" value="Budget better" class="goal-option">
+                <i class="bi bi-calendar-check"></i>
+                Budget better
+            </button>
+
+            <button type="submit" name="goal" value="Track expenses" class="goal-option">
+                <i class="bi bi-receipt"></i>
+                Track expenses
+            </button>
+
+        </form>
+
+        <a href="{{ url_for('login') }}" class="entry-link">
+            I already have an account
+        </a>
+    </div>
+
+</div>
+{% endblock %}

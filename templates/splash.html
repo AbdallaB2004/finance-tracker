@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome{% endblock %}
+
+{% block content %}
+<div class="entry-screen">
+
+    <div class="entry-logo">
+
+        <i class="bi bi-graph-up-arrow entry-icon"></i>
+
+        <h1>FinTrack</h1>
+
+        <p>Track money calmly</p>
+
+        <a href="{{ url_for('welcome') }}"
+           class="btn btn-primary entry-btn">
+            Continue
+        </a>
+
+    </div>
+
+</div>
+{% endblock %}

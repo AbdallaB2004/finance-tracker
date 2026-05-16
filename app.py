@@ -90,7 +90,6 @@ def seed_default_categories(user_id):
 # ============================================================================
 # 2. AUTH  (Person A)
 # ============================================================================
-
 class User(UserMixin):
     def __init__(self, row):
         self.id = row['id']
@@ -104,10 +103,36 @@ def load_user(user_id):
     return User(row) if row else None
 
 
+@app.route("/")
+def splash():
+    return render_template("splash.html")
+
+@app.route("/welcome")
+def welcome():
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard"))
+
+    return render_template("welcome.html")
+
+@app.route("/goals", methods=["GET", "POST"])
+def goals():
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard"))
+
+    if request.method == "POST":
+        goal = request.form.get("goal")
+        session["goal"] = goal
+        return redirect(url_for("register"))
+
+    return render_template("goals.html")
+
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
+
+    selected_goal = session.get("goal", "")
 
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
@@ -116,15 +141,27 @@ def register():
 
         if len(username) < 3:
             flash('Username must be at least 3 characters.', 'danger')
-            return render_template('auth/register.html', username=username)
+            return render_template(
+                'auth/register.html',
+                username=username,
+                selected_goal=selected_goal
+            )
 
         if len(password) < 8:
             flash('Password must be at least 8 characters.', 'danger')
-            return render_template('auth/register.html', username=username)
+            return render_template(
+                'auth/register.html',
+                username=username,
+                selected_goal=selected_goal
+            )
 
         if password != password_confirm:
             flash('Passwords do not match.', 'danger')
-            return render_template('auth/register.html', username=username)
+            return render_template(
+                'auth/register.html',
+                username=username,
+                selected_goal=selected_goal
+            )
 
         existing = query_db(
             "SELECT id FROM users WHERE username = ?",
@@ -134,7 +171,11 @@ def register():
 
         if existing:
             flash('That username is taken.', 'danger')
-            return render_template('auth/register.html', username=username)
+            return render_template(
+                'auth/register.html',
+                username=username,
+                selected_goal=selected_goal
+            )
 
         user_id = execute_db(
             "INSERT INTO users (username, password_hash) VALUES (?, ?)",
@@ -143,10 +184,16 @@ def register():
 
         seed_default_categories(user_id)
 
+        session.pop("goal", None)
+
         flash('Account created. Please log in.', 'success')
         return redirect(url_for('login'))
 
-    return render_template('auth/register.html', username='')
+    return render_template(
+        'auth/register.html',
+        username='',
+        selected_goal=selected_goal
+    )
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -180,7 +227,6 @@ def logout():
     logout_user()
     flash('Logged out.', 'success')
     return redirect(url_for('login'))
-
 
 # ============================================================================
 # 3. ACCOUNTS CRUD  (Person D)
@@ -978,8 +1024,8 @@ def get_recent_transactions(user_id, limit=5):
 
 
 # This is the main dashboard page — the first thing users see after logging in.
-# @app.route('/') means it runs when someone visits the root of the site.
-@app.route('/')
+# @app.route('/dashboard') means it runs when someone visits the dashboard URL.
+@app.route('/dashboard')
 @login_required
 def dashboard():
     """Show the dashboard with balance summary, chart and recent transactions."""

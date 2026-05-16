@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome to FinTrack{% endblock %}
+
+{% block content %}
+<div class="entry-screen">
+
+    <div class="welcome-card">
+        <i class="bi bi-graph-up-arrow entry-icon"></i>
+
+        <h1>Understand where your money goes</h1>
+        <p>Simple daily tracking without spreadsheets.</p>
+
+        <div class="welcome-points">
+            <div>
+                <i class="bi bi-wallet2"></i>
+                <span>Track expenses</span>
+            </div>
+
+            <div>
+                <i class="bi bi-piggy-bank"></i>
+                <span>Build better habits</span>
+            </div>
+
+            <div>
+                <i class="bi bi-bar-chart-line"></i>
+                <span>See your progress</span>
+            </div>
+        </div>
+
+        <a href="{{ url_for('goals') }}" class="btn btn-primary entry-btn">
+            Get Started
+        </a>
+
+        <a href="{{ url_for('login') }}" class="entry-link">
+            I already have an account
+        </a>
+    </div>
+
+</div>
+{% endblock %}
