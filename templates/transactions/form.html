@@ -1,159 +1,208 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
+{# Use base.html as the outer layout (navbar, footer, etc).
+   Everything we write goes INSIDE that shared layout. #}
 
-{% block title %}
-    {{ "Edit Transaction" if transaction else "Add Transaction" }}
-{% endblock %}
+{% block title %}{{ 'Edit' if transaction else 'Add' }} Transaction{% endblock %}
+{# If we are editing an existing transaction, show "Edit Transaction" in the tab.
+   If we are adding a new one, show "Add Transaction". #}
 
 {% block content %}
+<div class="container py-4">
+{# container = Bootstrap class that centres the content.
+   py-4 = adds vertical padding (space above and below). #}
 
-<div class="row justify-content-center">
+  {# Centre the form in a narrower column so it doesn't stretch too wide. #}
+  <div class="row justify-content-center">
+    <div class="col-md-7 col-lg-6">
+    {# col-md-7 = on medium screens the form takes up 7/12 of the width.
+       col-lg-6 = on large screens it narrows to 6/12 (half the page). #}
 
-    <div class="col-md-6">
+      {# --- Page header ---
+         Shows a back arrow button and the page title on the same line. #}
+      <div class="d-flex align-items-center mb-4">
+        {# Back button — takes the user back to the transactions list. #}
+        <a href="{{ url_for('transactions_list') }}" class="btn btn-outline-secondary btn-sm me-3">
+          &larr; Back
+        </a>
+        {# Page title changes between "Add Transaction" and "Edit Transaction". #}
+        <h1 class="h3 mb-0">{{ 'Edit' if transaction else 'Add' }} Transaction</h1>
+      </div>
 
-        <h2 class="mb-4">
-            {{ "Edit Transaction" if transaction else "Add Transaction" }}
-        </h2>
+      {# --- Flash messages ---
+         Shows any error or success messages set in Python. #}
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
 
-        <form method="post">
+      {# --- The form card ---
+         The form is wrapped in a card to give it a clean white box appearance. #}
+      <div class="card shadow-sm">
+        <div class="card-body p-4">
 
+          {# The form action changes depending on whether we are adding or editing.
+             - Adding:  submits to transactions_add
+             - Editing: submits to transactions_edit with the transaction's ID in the URL #}
+          <form method="POST"
+                action="{{ url_for('transactions_edit', transaction_id=transaction['id']) if transaction else url_for('transactions_add') }}">
+
+            {# --- Amount field ---
+               type="number" only allows numbers.
+               step="0.01" allows decimals like 9.99.
+               min="0.01" prevents zero or negative values.
+               required means the browser will not submit the form if this is empty.
+               If editing, the current amount is pre-filled as the default value. #}
             <div class="mb-3">
-                <label for="amount" class="form-label">
-                    Amount
-                </label>
-
-                <input type="number"
-                       id="amount"
-                       name="amount"
-                       class="form-control"
-                       step="0.01"
-                       min="0.01"
-                       value="{{ transaction['amount'] if transaction else '' }}"
-                       placeholder="e.g. 25.50"
-                       required>
+              <label for="amount" class="form-label fw-semibold">Amount (£) <span class="text-danger">*</span></label>
+              <input type="number"
+                     id="amount"
+                     name="amount"
+                     class="form-control"
+                     step="0.01"
+                     min="0.01"
+                     required
+                     value="{{ transaction['amount'] if transaction else '' }}"
+                     placeholder="0.00">
             </div>
 
+            {# --- Type dropdown ---
+               The user picks either "Income" or "Expense".
+               onchange="filterCategories()" calls the JavaScript function below
+               to automatically hide/show only the matching categories. #}
             <div class="mb-3">
-                <label for="type" class="form-label">
-                    Transaction Type
-                </label>
-
-                <select id="type"
-                        name="type"
-                        class="form-select"
-                        required>
-
-                    <option value="">
-                        Choose type
-                    </option>
-
-                    {% for type in ["income", "expense"] %}
-                        <option value="{{ type }}"
-                            {% if transaction and transaction["type"] == type %}
-                                selected
-                            {% endif %}>
-                            {{ type|title }}
-                        </option>
-                    {% endfor %}
-
-                </select>
+              <label for="type" class="form-label fw-semibold">Type <span class="text-danger">*</span></label>
+              <select id="type" name="type" class="form-select" required onchange="filterCategories()">
+                <option value="" disabled {% if not transaction %}selected{% endif %}>Select type…</option>
+                {# If editing, pre-select the existing type. #}
+                <option value="income"  {% if transaction and transaction['type'] == 'income'  %}selected{% endif %}>Income</option>
+                <option value="expense" {% if transaction and transaction['type'] == 'expense' %}selected{% endif %}>Expense</option>
+              </select>
             </div>
 
+            {# --- Date field ---
+               type="date" shows a date picker in the browser.
+               If editing, the existing date is pre-filled. #}
             <div class="mb-3">
-                <label for="date" class="form-label">
-                    Date
-                </label>
-
-                <input type="date"
-                       id="date"
-                       name="date"
-                       class="form-control"
-                       value="{{ transaction['date'] if transaction else '' }}"
-                       required>
+              <label for="date" class="form-label fw-semibold">Date <span class="text-danger">*</span></label>
+              <input type="date"
+                     id="date"
+                     name="date"
+                     class="form-control"
+                     required
+                     value="{{ transaction['date'] if transaction else '' }}">
             </div>
 
+            {# --- Account dropdown ---
+               Lists all accounts belonging to the logged-in user.
+               If editing, the existing account is pre-selected.
+               If the user has no accounts yet, a warning message is shown. #}
             <div class="mb-3">
-                <label for="description" class="form-label">
-                    Description
-                </label>
-
-                <input type="text"
-                       id="description"
-                       name="description"
-                       class="form-control"
-                       value="{{ transaction['description'] if transaction else '' }}"
-                       placeholder="e.g. Groceries, salary, rent">
+              <label for="account_id" class="form-label fw-semibold">Account <span class="text-danger">*</span></label>
+              <select id="account_id" name="account_id" class="form-select" required>
+                <option value="" disabled {% if not transaction %}selected{% endif %}>Select account…</option>
+                {% for acc in accounts %}
+                  <option value="{{ acc['id'] }}"
+                    {% if transaction and transaction['account_id'] == acc['id'] %}selected{% endif %}>
+                    {{ acc['name'] }}
+                  </option>
+                {% endfor %}
+              </select>
+              {# Warning if the user has not created any accounts yet. #}
+              {% if not accounts %}
+                <div class="form-text text-warning">
+                  No accounts found. <a href="{{ url_for('accounts_add') }}">Add one first.</a>
+                </div>
+              {% endif %}
             </div>
 
+            {# --- Category dropdown ---
+               Lists all categories belonging to the logged-in user.
+               data-type stores whether each category is "income" or "expense"
+               so the JavaScript filter below can show/hide the right ones.
+               If editing, the existing category is pre-selected. #}
             <div class="mb-3">
-                <label for="account_id" class="form-label">
-                    Account
-                </label>
-
-                <select id="account_id"
-                        name="account_id"
-                        class="form-select"
-                        required>
-
-                    <option value="">
-                        Choose account
-                    </option>
-
-                    {% for acc in accounts %}
-                        <option value="{{ acc['id'] }}"
-                            {% if transaction and transaction["account_id"] == acc["id"] %}
-                                selected
-                            {% endif %}>
-                            {{ acc["name"] }}
-                        </option>
-                    {% endfor %}
-
-                </select>
+              <label for="category_id" class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
+              <select id="category_id" name="category_id" class="form-select" required>
+                <option value="" disabled selected>Select category…</option>
+                {% for cat in categories %}
+                  <option value="{{ cat['id'] }}"
+                          data-type="{{ cat['type'] }}"
+                    {% if transaction and transaction['category_id'] == cat['id'] %}selected{% endif %}>
+                    {{ cat['name'] }} ({{ cat['type'] }})
+                  </option>
+                {% endfor %}
+              </select>
             </div>
 
-            <div class="mb-3">
-                <label for="category_id" class="form-label">
-                    Category
-                </label>
-
-                <select id="category_id"
-                        name="category_id"
-                        class="form-select"
-                        required>
-
-                    <option value="">
-                        Choose category
-                    </option>
-
-                    {% for cat in categories %}
-                        <option value="{{ cat['id'] }}"
-                            {% if transaction and transaction["category_id"] == cat["id"] %}
-                                selected
-                            {% endif %}>
-                            {{ cat["name"] }}
-                        </option>
-                    {% endfor %}
-
-                </select>
+            {# --- Description field ---
+               Optional free-text note about the transaction.
+               maxlength="200" limits it to 200 characters.
+               If editing, the existing description is pre-filled. #}
+            <div class="mb-4">
+              <label for="description" class="form-label fw-semibold">Description</label>
+              <input type="text"
+                     id="description"
+                     name="description"
+                     class="form-control"
+                     maxlength="200"
+                     value="{{ transaction['description'] if transaction and transaction['description'] else '' }}"
+                     placeholder="Optional note">
             </div>
 
-            <div class="d-flex gap-2">
-
-                <button type="submit"
-                        class="btn btn-primary">
-                    Save Transaction
-                </button>
-
-                <a href="{{ url_for('transactions_list') }}"
-                   class="btn btn-secondary">
-                    Cancel
-                </a>
-
+            {# --- Submit button ---
+               d-grid makes the button stretch to full width.
+               The label changes between "Add transaction" and "Save changes". #}
+            <div class="d-grid">
+              <button type="submit" class="btn btn-primary btn-lg">
+                {{ 'Save changes' if transaction else 'Add transaction' }}
+              </button>
             </div>
 
-        </form>
+          </form>
+        </div>
+      </div>
+      {# End of form card #}
 
     </div>
-
+  </div>
 </div>
+{# End of main container #}
+
+{# --- JavaScript: filter categories by type ---
+   When the user picks "Income" or "Expense" in the Type dropdown,
+   this function hides all categories that don't match.
+   For example: if the user picks "Expense", only expense categories are shown. #}
+<script>
+  function filterCategories() {
+    // Get the currently selected type value ('income' or 'expense').
+    const type = document.getElementById('type').value;
+
+    // Get the category dropdown and all its options that have a data-type attribute.
+    const catSelect = document.getElementById('category_id');
+    const options = catSelect.querySelectorAll('option[data-type]');
+
+    // Loop through each category option and hide it if it doesn't match the selected type.
+    options.forEach(opt => {
+      opt.hidden = opt.dataset.type !== type;
+    });
+
+    // If the currently selected category no longer matches the new type, clear the selection.
+    const selected = catSelect.options[catSelect.selectedIndex];
+    if (selected && selected.dataset.type && selected.dataset.type !== type) {
+      catSelect.value = '';
+    }
+  }
+
+  // Run filterCategories as soon as the page loads.
+  // This is important for the Edit form so the categories are already filtered
+  // to match the existing transaction type when the page first opens.
+  document.addEventListener('DOMContentLoaded', filterCategories);
+</script>
 
 {% endblock %}
