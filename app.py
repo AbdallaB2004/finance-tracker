@@ -569,49 +569,231 @@ def categories_delete(category_id):
 # ============================================================================
 # 5. TRANSACTIONS CRUD  (Person B)
 # ============================================================================
-
 @app.route('/transactions')
 @login_required
 def transactions_list():
-    # TODO JOIN accounts + categories so names and colours show on the list
-    return render_template_placeholder(
-        'Transactions',
-        'transactions/list.html'
+    transactions = query_db(
+        """
+        SELECT
+            t.id,
+            t.amount,
+            t.type,
+            t.date,
+            t.description,
+            a.name AS account_name,
+            c.name AS category_name
+        FROM transactions t
+        JOIN accounts a ON t.account_id = a.id
+        JOIN categories c ON t.category_id = c.id
+        WHERE t.user_id = ?
+        ORDER BY t.date DESC
+        """,
+        (current_user.id,)
+    )
+
+    return render_template(
+        'transactions/list.html',
+        transactions=transactions
     )
 
 
 @app.route('/transactions/add', methods=['GET', 'POST'])
 @login_required
 def transactions_add():
-    if request.method == 'POST':
-        # TODO validate (amount > 0, account + category owned by user)
-        # TODO INSERT INTO transactions
-        pass
+    accounts = query_db(
+        """
+        SELECT id, name
+        FROM accounts
+        WHERE user_id = ?
+        ORDER BY name
+        """,
+        (current_user.id,)
+    )
 
-    # TODO load accounts + categories for dropdowns
-    return render_template_placeholder(
-        'Add transaction',
-        'transactions/form.html'
+    categories = query_db(
+        """
+        SELECT id, name
+        FROM categories
+        WHERE user_id = ?
+        ORDER BY name
+        """,
+        (current_user.id,)
+    )
+
+    if request.method == 'POST':
+        amount = request.form.get('amount', '').strip()
+        type_ = request.form.get('type', '').strip()
+        date = request.form.get('date', '').strip()
+        description = request.form.get('description', '').strip()
+        account_id = request.form.get('account_id', '').strip()
+        category_id = request.form.get('category_id', '').strip()
+
+        if not amount or not type_ or not date or not account_id or not category_id:
+            flash('Amount, type, date, account and category are required.', 'danger')
+            return redirect(url_for('transactions_add'))
+
+        try:
+            amount = float(amount)
+        except ValueError:
+            flash('Amount must be a number.', 'danger')
+            return redirect(url_for('transactions_add'))
+
+        if amount <= 0:
+            flash('Amount must be greater than 0.', 'danger')
+            return redirect(url_for('transactions_add'))
+
+        execute_db(
+            """
+            INSERT INTO transactions
+                (user_id, account_id, category_id, amount, type, description, date)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                current_user.id,
+                account_id,
+                category_id,
+                amount,
+                type_,
+                description,
+                date
+            )
+        )
+
+        flash('Transaction added successfully.', 'success')
+        return redirect(url_for('transactions_list'))
+
+    return render_template(
+        'transactions/form.html',
+        transaction=None,
+        accounts=accounts,
+        categories=categories,
+        form_title='Add Transaction',
+        button_text='Save Transaction'
     )
 
 
 @app.route('/transactions/<int:transaction_id>/edit', methods=['GET', 'POST'])
 @login_required
 def transactions_edit(transaction_id):
-    # TODO fetch by id AND user_id
-    # TODO POST: UPDATE transactions SET ...
-    return render_template_placeholder(
-        'Edit transaction',
-        'transactions/form.html'
+    transaction = query_db(
+        """
+        SELECT *
+        FROM transactions
+        WHERE id = ? AND user_id = ?
+        """,
+        (transaction_id, current_user.id),
+        one=True
+    )
+
+    if transaction is None:
+        flash('Transaction not found.', 'danger')
+        return redirect(url_for('transactions_list'))
+
+    accounts = query_db(
+        """
+        SELECT id, name
+        FROM accounts
+        WHERE user_id = ?
+        ORDER BY name
+        """,
+        (current_user.id,)
+    )
+
+    categories = query_db(
+        """
+        SELECT id, name
+        FROM categories
+        WHERE user_id = ?
+        ORDER BY name
+        """,
+        (current_user.id,)
+    )
+
+    if request.method == 'POST':
+        amount = request.form.get('amount', '').strip()
+        type_ = request.form.get('type', '').strip()
+        date = request.form.get('date', '').strip()
+        description = request.form.get('description', '').strip()
+        account_id = request.form.get('account_id', '').strip()
+        category_id = request.form.get('category_id', '').strip()
+
+        if not amount or not type_ or not date or not account_id or not category_id:
+            flash('Amount, type, date, account and category are required.', 'danger')
+            return redirect(url_for('transactions_edit', transaction_id=transaction_id))
+
+        try:
+            amount = float(amount)
+        except ValueError:
+            flash('Amount must be a number.', 'danger')
+            return redirect(url_for('transactions_edit', transaction_id=transaction_id))
+
+        if amount <= 0:
+            flash('Amount must be greater than 0.', 'danger')
+            return redirect(url_for('transactions_edit', transaction_id=transaction_id))
+
+        execute_db(
+            """
+            UPDATE transactions
+            SET account_id = ?,
+                category_id = ?,
+                amount = ?,
+                type = ?,
+                description = ?,
+                date = ?
+            WHERE id = ? AND user_id = ?
+            """,
+            (
+                account_id,
+                category_id,
+                amount,
+                type_,
+                description,
+                date,
+                transaction_id,
+                current_user.id
+            )
+        )
+
+        flash('Transaction updated successfully.', 'success')
+        return redirect(url_for('transactions_list'))
+
+    return render_template(
+        'transactions/form.html',
+        transaction=transaction,
+        accounts=accounts,
+        categories=categories,
+        form_title='Edit Transaction',
+        button_text='Update Transaction'
     )
 
 
 @app.route('/transactions/<int:transaction_id>/delete', methods=['POST'])
 @login_required
 def transactions_delete(transaction_id):
-    # TODO DELETE FROM transactions WHERE id = ? AND user_id = ?
-    return redirect(url_for('transactions_list'))
+    transaction = query_db(
+        """
+        SELECT id
+        FROM transactions
+        WHERE id = ? AND user_id = ?
+        """,
+        (transaction_id, current_user.id),
+        one=True
+    )
 
+    if transaction is None:
+        flash('Transaction not found.', 'danger')
+        return redirect(url_for('transactions_list'))
+
+    execute_db(
+        """
+        DELETE FROM transactions
+        WHERE id = ? AND user_id = ?
+        """,
+        (transaction_id, current_user.id)
+    )
+
+    flash('Transaction deleted successfully.', 'success')
+    return redirect(url_for('transactions_list'))
 
 # ============================================================================
 # 6. DASHBOARD  (Person B)

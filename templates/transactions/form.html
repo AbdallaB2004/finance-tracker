@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {{ "Edit Transaction" if transaction else "Add Transaction" }}
+{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+
+    <div class="col-md-6">
+
+        <h2 class="mb-4">
+            {{ "Edit Transaction" if transaction else "Add Transaction" }}
+        </h2>
+
+        <form method="post">
+
+            <div class="mb-3">
+                <label for="amount" class="form-label">
+                    Amount
+                </label>
+
+                <input type="number"
+                       id="amount"
+                       name="amount"
+                       class="form-control"
+                       step="0.01"
+                       min="0.01"
+                       value="{{ transaction['amount'] if transaction else '' }}"
+                       placeholder="e.g. 25.50"
+                       required>
+            </div>
+
+            <div class="mb-3">
+                <label for="type" class="form-label">
+                    Transaction Type
+                </label>
+
+                <select id="type"
+                        name="type"
+                        class="form-select"
+                        required>
+
+                    <option value="">
+                        Choose type
+                    </option>
+
+                    {% for type in ["income", "expense"] %}
+                        <option value="{{ type }}"
+                            {% if transaction and transaction["type"] == type %}
+                                selected
+                            {% endif %}>
+                            {{ type|title }}
+                        </option>
+                    {% endfor %}
+
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="date" class="form-label">
+                    Date
+                </label>
+
+                <input type="date"
+                       id="date"
+                       name="date"
+                       class="form-control"
+                       value="{{ transaction['date'] if transaction else '' }}"
+                       required>
+            </div>
+
+            <div class="mb-3">
+                <label for="description" class="form-label">
+                    Description
+                </label>
+
+                <input type="text"
+                       id="description"
+                       name="description"
+                       class="form-control"
+                       value="{{ transaction['description'] if transaction else '' }}"
+                       placeholder="e.g. Groceries, salary, rent">
+            </div>
+
+            <div class="mb-3">
+                <label for="account_id" class="form-label">
+                    Account
+                </label>
+
+                <select id="account_id"
+                        name="account_id"
+                        class="form-select"
+                        required>
+
+                    <option value="">
+                        Choose account
+                    </option>
+
+                    {% for acc in accounts %}
+                        <option value="{{ acc['id'] }}"
+                            {% if transaction and transaction["account_id"] == acc["id"] %}
+                                selected
+                            {% endif %}>
+                            {{ acc["name"] }}
+                        </option>
+                    {% endfor %}
+
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="category_id" class="form-label">
+                    Category
+                </label>
+
+                <select id="category_id"
+                        name="category_id"
+                        class="form-select"
+                        required>
+
+                    <option value="">
+                        Choose category
+                    </option>
+
+                    {% for cat in categories %}
+                        <option value="{{ cat['id'] }}"
+                            {% if transaction and transaction["category_id"] == cat["id"] %}
+                                selected
+                            {% endif %}>
+                            {{ cat["name"] }}
+                        </option>
+                    {% endfor %}
+
+                </select>
+            </div>
+
+            <div class="d-flex gap-2">
+
+                <button type="submit"
+                        class="btn btn-primary">
+                    Save Transaction
+                </button>
+
+                <a href="{{ url_for('transactions_list') }}"
+                   class="btn btn-secondary">
+                    Cancel
+                </a>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+{% endblock %}
