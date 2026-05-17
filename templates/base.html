@@ -32,8 +32,9 @@
             --table-row-hover: rgba(59, 130, 246, 0.08);
         }
 
-        body { min-height: 100vh; display: flex; flex-direction: column; }
+        body { min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
         main { flex: 1; }
+        .table-responsive { max-width: 100%; }
 
         .navbar { background-color: var(--nav-bg) !important; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-bottom: 1px solid rgba(255,255,255,0.1); }
         .navbar-brand { color: #ffffff !important; font-weight: 700; letter-spacing: 0.5px; }
@@ -155,6 +156,26 @@
     });
 
     setTheme(localStorage.getItem('theme') || 'light');
+</script>
+<script>
+    window.addEventListener('pageshow', function(e) {
+        if (e.persisted) { window.location.reload(); }
+    });
+</script>
+<script>
+    document.querySelectorAll('[data-counter-for]').forEach(function(out) {
+        var input = document.getElementById(out.dataset.counterFor);
+        if (!input) return;
+        var max = parseInt(input.getAttribute('maxlength'), 10);
+        var hit = out.closest('[data-counter-hit]');
+        function update() {
+            var n = input.value.length;
+            out.textContent = n;
+            if (hit) hit.classList.toggle('text-danger', max && n >= max);
+        }
+        input.addEventListener('input', update);
+        update();
+    });
 </script>
 {% block scripts %}{% endblock %}
 </body>

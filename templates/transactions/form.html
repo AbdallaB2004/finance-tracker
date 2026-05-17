@@ -7,9 +7,6 @@
    If we are adding a new one, show "Add Transaction". #}
 
 {% block content %}
-<div class="container py-4">
-{# container = Bootstrap class that centres the content.
-   py-4 = adds vertical padding (space above and below). #}
 
   {# Centre the form in a narrower column so it doesn't stretch too wide. #}
   <div class="row justify-content-center">
@@ -27,19 +24,6 @@
         {# Page title changes between "Add Transaction" and "Edit Transaction". #}
         <h1 class="h3 mb-0">{{ 'Edit' if transaction else 'Add' }} Transaction</h1>
       </div>
-
-      {# --- Flash messages ---
-         Shows any error or success messages set in Python. #}
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          {% for category, message in messages %}
-            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-              {{ message }}
-              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-          {% endfor %}
-        {% endif %}
-      {% endwith %}
 
       {# --- The form card ---
          The form is wrapped in a card to give it a clean white box appearance. #}
@@ -95,7 +79,8 @@
                      name="date"
                      class="form-control"
                      required
-                     value="{{ transaction['date'] if transaction else '' }}">
+                     value="{{ transaction['date'] if transaction else '' }}"
+                     onkeydown="event.preventDefault()">
             </div>
 
             {# --- Account dropdown ---
@@ -150,9 +135,12 @@
                      id="description"
                      name="description"
                      class="form-control"
-                     maxlength="200"
+                     maxlength="100"
                      value="{{ transaction['description'] if transaction and transaction['description'] else '' }}"
                      placeholder="Optional note">
+              <div class="form-text" data-counter-hit>
+                <span data-counter-for="description">0</span>/100 characters
+              </div>
             </div>
 
             {# --- Submit button ---
@@ -171,8 +159,6 @@
 
     </div>
   </div>
-</div>
-{# End of main container #}
 
 {# --- JavaScript: filter categories by type ---
    When the user picks "Income" or "Expense" in the Type dropdown,

@@ -18,12 +18,13 @@
 <div class="card shadow-sm mb-4">
     <div class="card-body p-0">
 
-        <table class="table table-hover align-middle mb-0 table-bordered">
+        <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 table-bordered" style="min-width: 420px;">
 
             <thead class="table-light">
                 <tr>
                     <th style="width: 35%;">Name</th>
-                    <th style="width: 25%;">Type</th>
+                    <th style="width: 25%;" class="d-none d-sm-table-cell">Type</th>
                     <th style="width: 20%;" class="text-end">
                         Starting Balance
                     </th>
@@ -39,21 +40,25 @@
 
                 <tr>
                     <td>
-                        <span class="badge rounded-pill text-bg-primary px-3 py-2">
+                        <span class="badge rounded-pill text-bg-primary px-3 py-2 text-truncate d-inline-block align-middle"
+                              style="max-width: 100%;"
+                              title="{{ account['name'] }}">
                             {{ account["name"] }}
                         </span>
                     </td>
 
-                    <td>
+                    <td class="d-none d-sm-table-cell">
                         {{ account["type"] }}
                     </td>
 
-                    <td class="text-end fw-semibold">
+                    <td class="text-end fw-semibold"
+                        style="max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis;"
+                        title="£{{ '%.2f'|format(account['starting_balance']) }}">
                         £{{ "%.2f"|format(account["starting_balance"]) }}
                     </td>
 
                     <td class="text-center">
-                        <div class="d-flex justify-content-center gap-2">
+                        <div class="d-flex justify-content-center gap-2 flex-nowrap">
 
                             <a href="{{ url_for('accounts_edit', account_id=account['id']) }}"
                                class="btn btn-sm btn-outline-secondary">
@@ -68,67 +73,83 @@
                             </button>
 
                         </div>
-                    </td>
-                </tr>
 
-                <div class="modal fade"
-                     id="deleteAccountModal{{ account['id'] }}"
-                     tabindex="-1"
-                     aria-labelledby="deleteAccountModalLabel{{ account['id'] }}"
-                     aria-hidden="true">
+                        <div class="modal fade"
+                             id="deleteAccountModal{{ account['id'] }}"
+                             tabindex="-1"
+                             aria-labelledby="deleteAccountModalLabel{{ account['id'] }}"
+                             aria-hidden="true">
 
-                    <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
 
-                        <div class="modal-content">
+                                <div class="modal-content">
 
-                            <div class="modal-header">
-                                <h5 class="modal-title"
-                                    id="deleteAccountModalLabel{{ account['id'] }}">
-                                    Delete account
-                                </h5>
+                                    <div class="modal-header">
+                                        <h5 class="modal-title"
+                                            id="deleteAccountModalLabel{{ account['id'] }}">
+                                            {% if account['usage_count'] and account['usage_count'] > 0 %}
+                                                Account in use
+                                            {% else %}
+                                                Delete account
+                                            {% endif %}
+                                        </h5>
 
-                                <button type="button"
-                                        class="btn-close"
-                                        data-bs-dismiss="modal"
-                                        aria-label="Close">
-                                </button>
-                            </div>
+                                        <button type="button"
+                                                class="btn-close"
+                                                data-bs-dismiss="modal"
+                                                aria-label="Close">
+                                        </button>
+                                    </div>
 
-                            <div class="modal-body text-center">
-                                Are you sure you want to delete
-                                <strong>{{ account["name"] }}</strong>?
-                            </div>
+                                    <div class="modal-body text-center">
+                                        {% if account['usage_count'] and account['usage_count'] > 0 %}
+                                            The account <strong>{{ account["name"] }}</strong> is linked to <strong>{{ account['usage_count'] }}</strong> transaction{{ 's' if account['usage_count'] != 1 else '' }} and cannot be deleted.
+                                        {% else %}
+                                            Are you sure you want to delete
+                                            <strong>{{ account["name"] }}</strong>?
+                                        {% endif %}
+                                    </div>
 
-                            <div class="modal-footer">
-                                <button type="button"
-                                        class="btn btn-outline-secondary"
-                                        data-bs-dismiss="modal">
-                                    Cancel
-                                </button>
+                                    <div class="modal-footer">
+                                        <button type="button"
+                                                class="btn btn-outline-secondary"
+                                                data-bs-dismiss="modal">
+                                            {% if account['usage_count'] and account['usage_count'] > 0 %}
+                                                Close
+                                            {% else %}
+                                                Cancel
+                                            {% endif %}
+                                        </button>
 
-                                <form method="post"
-                                      action="{{ url_for('accounts_delete', account_id=account['id']) }}"
-                                      class="m-0">
+                                        {% if not account['usage_count'] or account['usage_count'] == 0 %}
+                                            <form method="post"
+                                                  action="{{ url_for('accounts_delete', account_id=account['id']) }}"
+                                                  class="m-0">
 
-                                    <button type="submit"
-                                            class="btn btn-danger">
-                                        Delete
-                                    </button>
+                                                <button type="submit"
+                                                        class="btn btn-danger">
+                                                    Delete
+                                                </button>
 
-                                </form>
+                                            </form>
+                                        {% endif %}
+                                    </div>
+
+                                </div>
+
                             </div>
 
                         </div>
 
-                    </div>
-
-                </div>
+                    </td>
+                </tr>
 
                 {% endfor %}
 
             </tbody>
 
         </table>
+        </div>
 
     </div>
 </div>

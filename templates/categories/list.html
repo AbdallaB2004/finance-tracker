@@ -25,12 +25,12 @@
 
 <div class="card shadow-sm mb-4">
     <div class="card-body p-0">
-
-        <table class="table table-hover align-middle mb-0 table-bordered category-table">
+        <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 table-bordered category-table" style="min-width: 360px;">
             <thead>
                 <tr>
                     <th style="width: 55%">Name</th>
-                    <th style="width: 20%" class="text-center">Usage</th>
+                    <th style="width: 20%" class="text-center d-none d-sm-table-cell">Usage</th>
                     <th style="width: 25%" class="text-center">Actions</th>
                 </tr>
             </thead>
@@ -40,18 +40,19 @@
                 <tr class="category-row">
 
                     <td>
-                        <span class="category-badge"
-                              style="background-color: {{ c.color }};">
+                        <span class="category-badge text-truncate d-inline-block align-middle"
+                              style="background-color: {{ c.color }}; max-width: 100%;"
+                              title="{{ c.name }}">
                             {{ c.name }}
                         </span>
                     </td>
 
-                    <td class="text-center text-muted">
+                    <td class="text-center text-muted d-none d-sm-table-cell">
                         {{ c.usage_count if c.usage_count is defined else 0 }}
                     </td>
 
                     <td class="text-center">
-                        <div class="d-flex justify-content-center gap-2">
+                        <div class="d-flex justify-content-center gap-2 flex-nowrap">
 
                             <a href="{{ url_for('categories_edit', category_id=c.id) }}"
                                class="btn btn-sm btn-outline-secondary">
@@ -68,7 +69,7 @@
 
                         <!-- DELETE MODAL -->
                         <div class="modal fade" id="deleteModal{{ c.id }}" tabindex="-1">
-                            <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
                                 <div class="modal-content">
 
                                     <div class="modal-header">
@@ -112,7 +113,7 @@
             </tbody>
 
         </table>
-
+        </div>
     </div>
 </div>
 

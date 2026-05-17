@@ -57,33 +57,38 @@
                     <a href="{{ url_for('transactions_list') }}" class="small">View all</a>
                 </div>
                 {% if recent_transactions %}
-                    <table class="table table-sm mb-0">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Description</th>
-                                <th>Category</th>
-                                <th class="text-end">Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for t in recent_transactions %}
-                            <tr>
-                                <td>{{ t.date }}</td>
-                                <td>{{ t.description }}</td>
-                                <td>
-                                    <span class="badge"
-                                          style="background-color: {{ t.color }};">
-                                        {{ t.category_name }}
-                                    </span>
-                                </td>
-                                <td class="text-end {{ 'text-danger' if t.type == 'expense' else 'text-success' }}">
-                                    {{ '-' if t.type == 'expense' else '+' }}£{{ "%.2f"|format(t.amount) }}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover table-bordered align-middle mb-0" style="min-width: 380px;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 25%">Date</th>
+                                    <th>Description</th>
+                                    <th class="d-none d-md-table-cell" style="width: 25%">Category</th>
+                                    <th class="text-end" style="width: 22%">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for t in recent_transactions %}
+                                <tr>
+                                    <td>{{ t.date }}</td>
+                                    <td>{% if t.description %}<span class="d-inline-block text-truncate" style="max-width: 100%;" title="{{ t.description }}">{{ t.description }}</span>{% else %}—{% endif %}</td>
+                                    <td class="d-none d-md-table-cell">
+                                        <span class="badge text-truncate d-inline-block align-middle"
+                                              style="background-color: {{ t.category_color }}; max-width: 100%;"
+                                              title="{{ t.category_name }}">
+                                            {{ t.category_name }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end {{ 'text-danger' if t.type == 'expense' else 'text-success' }}"
+                                        style="max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis;"
+                                        title="£{{ '%.2f'|format(t.amount) }}">
+                                        {{ '-' if t.type == 'expense' else '+' }}£{{ "%.2f"|format(t.amount) }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 {% else %}
                     <p class="text-muted mb-0">No transactions yet.</p>
                 {% endif %}

@@ -28,7 +28,12 @@
                        class="form-control"
                        value="{{ account['name'] if account else '' }}"
                        placeholder="e.g. Main Bank"
+                       maxlength="40"
                        required>
+
+                <div class="form-text" data-counter-hit>
+                    <span data-counter-for="name">0</span>/40 characters
+                </div>
 
             </div>
 
