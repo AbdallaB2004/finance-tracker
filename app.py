@@ -245,15 +245,18 @@ def accounts_list():
         (current_user.id,)
     )
 
+    accounts_with_usage = []
     for account in accounts:
         usage = query_db(
             "SELECT COUNT(*) as count FROM transactions WHERE account_id = ? AND user_id = ?",
             (account['id'], current_user.id),
             one=True,
         )
-        account['usage_count'] = usage['count'] if usage else 0
+        account_dict = dict(account)
+        account_dict['usage_count'] = usage['count'] if usage else 0
+        accounts_with_usage.append(account_dict)
 
-    return render_template('accounts/list.html', accounts=accounts)
+    return render_template('accounts/list.html', accounts=accounts_with_usage)
 
 
 @app.route('/accounts/add', methods=['GET', 'POST'])
