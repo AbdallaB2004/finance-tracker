@@ -15,12 +15,17 @@
                 <form method="POST">
 
                     <div class="mb-3">
-                        <label class="form-label">Name</label>
+                        <label class="form-label" for="cat_name">Name</label>
                         <input type="text"
+                               id="cat_name"
                                name="name"
                                class="form-control"
                                value="{{ category.name if category else '' }}"
+                               maxlength="30"
                                required>
+                        <div class="form-text" data-counter-hit>
+                            <span data-counter-for="cat_name">0</span>/30 characters
+                        </div>
                     </div>
 
                     <div class="mb-3">

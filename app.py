@@ -31,6 +31,24 @@ def make_session_permanent():
     session.permanent = True
 
 
+@app.after_request
+def add_no_cache_headers(response):
+    if request.endpoint in {'dashboard', 'transactions_list', 'accounts_list', 'categories_list'}:
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
+
+
+@app.template_filter('truncate')
+def truncate_text(text, length=50):
+    if not text:
+        return text
+    if len(text) > length:
+        return text[:length] + '...'
+    return text
+
+
 # ============================================================================
 # 1. DATABASE HELPERS  (Person A)
 # ============================================================================
@@ -481,6 +499,15 @@ def categories_add():
                 categories=categories
             )
 
+        if any(_color_distance(color, c['color']) < 60 for c in categories):
+            flash('Pick a colour more distinct from your existing categories.', 'danger')
+            return render_template(
+                'categories/form.html',
+                category=None,
+                types=CATEGORY_TYPES,
+                categories=categories
+            )
+
         existing = query_db(
             "SELECT id FROM categories WHERE user_id = ? AND LOWER(name) = LOWER(?)",
             (current_user.id, name),
@@ -563,6 +590,19 @@ def categories_edit(category_id):
 
         if type_ != category['type'] and category['usage_count'] > 0:
             flash('Cannot change category type while transactions are tied to it.', 'danger')
+            return render_template(
+                'categories/form.html',
+                category=category,
+                types=CATEGORY_TYPES,
+                categories=categories
+            )
+
+        other_colors = [c['color'] for c in query_db(
+            "SELECT color FROM categories WHERE user_id = ? AND id != ?",
+            (current_user.id, category_id),
+        )]
+        if any(_color_distance(color, c) < 60 for c in other_colors):
+            flash('Pick a colour more distinct from your existing categories.', 'danger')
             return render_template(
                 'categories/form.html',
                 category=category,
@@ -948,65 +988,60 @@ def get_total_balance(user_id):
     return (base['total'] or 0.0) + (income['total'] or 0.0) - (expense['total'] or 0.0)
 
 
-def get_monthly_income(user_id, month_start):
+def get_monthly_income(user_id, month_start, month_end):
     """Return the total income for the current month only.
 
     month_start is the first day of the current month, e.g. '2026-05-01'.
-    Only transactions on or after that date are counted.
+    month_end is the first day of next month (exclusive).
     """
 
-    # Sum all income transactions from the start of this month onwards.
     row = query_db(
         """
         SELECT COALESCE(SUM(amount), 0) AS total
         FROM transactions
-        WHERE user_id = ? AND type = 'income' AND date >= ?
+        WHERE user_id = ? AND type = 'income' AND date >= ? AND date < ?
         """,
-        (user_id, month_start),
+        (user_id, month_start, month_end),
         one=True,
     )
     return row['total'] if row else 0.0
 
 
-def get_monthly_expense(user_id, month_start):
+def get_monthly_expense(user_id, month_start, month_end):
     """Return the total expenses for the current month only.
 
     month_start is the first day of the current month, e.g. '2026-05-01'.
-    Only transactions on or after that date are counted.
+    month_end is the first day of next month (exclusive).
     """
 
-    # Sum all expense transactions from the start of this month onwards.
     row = query_db(
         """
         SELECT COALESCE(SUM(amount), 0) AS total
         FROM transactions
-        WHERE user_id = ? AND type = 'expense' AND date >= ?
+        WHERE user_id = ? AND type = 'expense' AND date >= ? AND date < ?
         """,
-        (user_id, month_start),
+        (user_id, month_start, month_end),
         one=True,
     )
     return row['total'] if row else 0.0
 
 
-def get_expenses_by_category(user_id, month_start):
+def get_expenses_by_category(user_id, month_start, month_end):
     """Return this month's expenses grouped by category for the doughnut chart.
 
     Each row contains the category name, its colour, and the total spent in it.
     """
 
-    # GROUP BY c.id groups all transactions under the same category together
-    # and adds up their amounts into one total per category.
-    # ORDER BY total DESC puts the biggest spending category first in the chart.
     return query_db(
         """
         SELECT c.name, c.color, COALESCE(SUM(t.amount), 0) AS total
         FROM transactions t
         JOIN categories c ON c.id = t.category_id
-        WHERE t.user_id = ? AND t.type = 'expense' AND t.date >= ?
+        WHERE t.user_id = ? AND t.type = 'expense' AND t.date >= ? AND t.date < ?
         GROUP BY c.id
         ORDER BY total DESC
         """,
-        (user_id, month_start),
+        (user_id, month_start, month_end),
     )
 
 
@@ -1041,21 +1076,25 @@ def get_recent_transactions(user_id, limit=5):
 def dashboard():
     """Show the dashboard with balance summary, chart and recent transactions."""
 
-    # Get today's date and calculate the first day of the current month.
-    # For example: if today is 16 May 2026, month_start becomes '2026-05-01'.
-    # This is passed to the helper functions so they only count this month's data.
     today = datetime.today()
-    month_start = today.replace(day=1).strftime('%Y-%m-%d')
+    month_start_dt = today.replace(day=1)
+    month_start = month_start_dt.strftime('%Y-%m-%d')
+    if month_start_dt.month == 12:
+        next_month_dt = month_start_dt.replace(year=month_start_dt.year + 1, month=1)
+    else:
+        next_month_dt = month_start_dt.replace(month=month_start_dt.month + 1)
+    month_end = next_month_dt.strftime('%Y-%m-%d')
 
-    # Call each helper function to get the numbers,
-    # then pass them all to the dashboard HTML template to display on the page.
+    expense_breakdown_rows = get_expenses_by_category(current_user.id, month_start, month_end)
+    expense_breakdown = [dict(row) for row in expense_breakdown_rows]
+
     return render_template(
         'dashboard.html',
         total_balance=get_total_balance(current_user.id),
-        month_income=get_monthly_income(current_user.id, month_start),
-        month_expenses=get_monthly_expense(current_user.id, month_start),
+        month_income=get_monthly_income(current_user.id, month_start, month_end),
+        month_expenses=get_monthly_expense(current_user.id, month_start, month_end),
         recent_transactions=get_recent_transactions(current_user.id, limit=5),
-        expense_breakdown=get_expenses_by_category(current_user.id, month_start),
+        expense_breakdown=expense_breakdown,
     )
 
 
