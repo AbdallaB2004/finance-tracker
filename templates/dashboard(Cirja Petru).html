@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{# This line means: use base.html as the outer layout (navbar, footer, etc).
+   Everything we write goes INSIDE that layout. #}
+
+{% block title %}Dashboard{% endblock %}
+{# Sets the browser tab title to "Dashboard" #}
+
+{% block content %}
+<div class="container py-4">
+{# container = Bootstrap class that centres the content and adds padding on the sides.
+   py-4 = adds vertical padding (space above and below). #}
+
+  <h1 class="h3 mb-4">Dashboard</h1>
+  {# Page heading. h3 makes it a medium-sized title. mb-4 adds space below it. #}
+
+  {# --- Flash messages ---
+     Flash messages are one-time notifications (green for success, red for error).
+     get_flashed_messages() fetches any messages that were set in Python.
+     with_categories=true means we also get the colour type (success / danger). #}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        {# Loop through each message and show it as a coloured alert box.
+           alert-{{ category }} becomes alert-success or alert-danger automatically.
+           alert-dismissible + the button lets the user close the message. #}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {# --- Summary cards ---
+     Three cards in a row: Total Balance, Monthly Income, Monthly Expenses.
+     row g-3 = Bootstrap grid row with a gap of 3 between columns.
+     col-sm-4 = each card takes up 1/3 of the width on small screens and above. #}
+  <div class="row g-3 mb-4">
+
+    {# Card 1: Total Balance
+       The colour changes to green if the balance is positive, red if negative. #}
+    <div class="col-sm-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Total Balance</p>
+          {# total_balance comes from Python (get_total_balance function).
+             '%.2f' formats the number to always show 2 decimal places, e.g. 120.50 #}
+          <h2 class="mb-0 {% if total_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+            £{{ '%.2f' | format(total_balance) }}
+          </h2>
+        </div>
+      </div>
+    </div>
+
+    {# Card 2: Income this month.
+       month_income comes from Python (get_monthly_income function). #}
+    <div class="col-sm-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Income this month</p>
+          <h2 class="mb-0 text-success">£{{ '%.2f' | format(month_income) }}</h2>
+        </div>
+      </div>
+    </div>
+
+    {# Card 3: Expenses this month.
+       month_expenses comes from Python (get_monthly_expense function). #}
+    <div class="col-sm-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Expenses this month</p>
+          <h2 class="mb-0 text-danger">£{{ '%.2f' | format(month_expenses) }}</h2>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  {# End of summary cards row #}
+
+  {# --- Bottom section: chart on the left, recent transactions on the right ---
+     col-md-5 = chart takes 5/12 of the width on medium screens.
+     col-md-7 = recent transactions take 7/12 of the width. #}
+  <div class="row g-4">
+
+    {# Left column: Expense breakdown doughnut chart #}
+    <div class="col-md-5">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h5 class="card-title mb-3">Expenses by Category</h5>
+
+          {# Only show the chart if there is expense data this month.
+             expense_breakdown comes from Python (get_expenses_by_category function). #}
+          {% if expense_breakdown %}
+            {# This <canvas> is the empty box where Chart.js will draw the doughnut chart.
+               The JavaScript at the bottom of this file fills it in. #}
+            <canvas id="expenseChart" height="260"></canvas>
+          {% else %}
+            {# If there are no expenses this month, show a friendly message instead. #}
+            <p class="text-muted text-center py-5">No expense data for this month.</p>
+          {% endif %}
+
+        </div>
+      </div>
+    </div>
+
+    {# Right column: Recent transactions table #}
+    <div class="col-md-7">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+
+          {# Card header with title and a "View all" button linking to the full list. #}
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title mb-0">Recent Transactions</h5>
+            <a href="{{ url_for('transactions_list') }}" class="btn btn-outline-secondary btn-sm">View all</a>
+          </div>
+
+          {# Only show the table if there are recent transactions.
+             recent_transactions comes from Python (get_recent_transactions function). #}
+          {% if recent_transactions %}
+            <div class="table-responsive">
+            {# table-responsive adds a horizontal scrollbar on small screens
+               so the table doesn't break the layout. #}
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Category</th>
+                    <th class="text-end">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {# Loop through each recent transaction and show one row per transaction. #}
+                  {% for t in recent_transactions %}
+                    <tr>
+                      {# Date column. text-nowrap stops the date from wrapping onto two lines. #}
+                      <td class="text-nowrap text-muted small">{{ t['date'] }}</td>
+
+                      {# Description column. If no description was entered, show the account name instead. #}
+                      <td>{{ t['description'] or t['account_name'] }}</td>
+
+                      {# Category column shown as a coloured pill badge.
+                         The colour comes from the category's colour stored in the database. #}
+                      <td>
+                        <span class="badge rounded-pill"
+                              style="background-color: {{ t['category_color'] }};">
+                          {{ t['category_name'] }}
+                        </span>
+                      </td>
+
+                      {# Amount column. Green + for income, red − for expense. #}
+                      <td class="text-end text-nowrap fw-semibold
+                        {% if t['type'] == 'income' %}text-success{% else %}text-danger{% endif %}">
+                        {% if t['type'] == 'income' %}+{% else %}−{% endif %}
+                        £{{ '%.2f' | format(t['amount']) }}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+          {% else %}
+            {# If there are no transactions at all yet, show a friendly message. #}
+            <p class="text-muted text-center py-4">No transactions yet.</p>
+          {% endif %}
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+  {# End of bottom row #}
+
+</div>
+{# End of main container #}
+
+{# --- Chart.js doughnut chart ---
+   This block only runs if there is expense data to show. #}
+{% if expense_breakdown %}
+
+  {# Load Chart.js from a CDN (no installation needed — it loads from the internet). #}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    // Pull the category names, amounts and colours from Python into JavaScript.
+    // tojson converts the Python list into a JavaScript array.
+    const labels = {{ expense_breakdown | map(attribute='name')  | list | tojson }};
+    const data   = {{ expense_breakdown | map(attribute='total') | list | tojson }};
+    const colors = {{ expense_breakdown | map(attribute='color') | list | tojson }};
+
+    // Create the doughnut chart inside the <canvas id="expenseChart"> element above.
+    new Chart(document.getElementById('expenseChart'), {
+      type: 'doughnut',  // Chart type — a ring/doughnut shape
+      data: {
+        labels: labels,  // Category names shown in the legend
+        datasets: [{
+          data: data,                  // The amounts for each slice
+          backgroundColor: colors,    // Each slice gets its category colour
+          borderWidth: 2,             // Small white gap between slices
+          borderColor: '#fff',
+        }]
+      },
+      options: {
+        responsive: true,  // Chart resizes with the screen
+        plugins: {
+          legend: {
+            position: 'bottom',  // Legend (category names) appears below the chart
+            labels: { padding: 16, boxWidth: 14 }
+          },
+          tooltip: {
+            callbacks: {
+              // Format the tooltip to show £ and 2 decimal places when hovering a slice
+              label: ctx => ` £${ctx.parsed.toFixed(2)}`
+            }
+          }
+        }
+      }
+    });
+  </script>
+
+{% endif %}
+
+{% endblock %}
