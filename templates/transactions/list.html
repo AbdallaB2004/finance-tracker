@@ -41,10 +41,10 @@
      'transactions' is the list passed in from Python (transactions_list function). #}
   {% if transactions %}
 
-    {# table-responsive adds a horizontal scrollbar on small screens
-       so the table doesn't break the layout. #}
-    <div class="table-responsive">
-      <table class="table table-hover align-middle">
+    <div class="card shadow-sm mb-4">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle table-bordered mb-0">
       {# table-hover = rows highlight when you move the mouse over them.
          align-middle = content in each cell is vertically centred. #}
 
@@ -108,22 +108,51 @@
                 <a href="{{ url_for('transactions_edit', transaction_id=t['id']) }}"
                    class="btn btn-outline-secondary btn-sm">Edit</a>
 
-                {# Delete button — wrapped in a form because delete must be a POST request.
-                   onsubmit="return confirm(...)" shows a popup asking the user to confirm
-                   before actually deleting — prevents accidental deletions. #}
-                <form method="POST"
-                      action="{{ url_for('transactions_delete', transaction_id=t['id']) }}"
-                      class="d-inline"
-                      onsubmit="return confirm('Delete this transaction?');">
-                  <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
-                </form>
+                {# Delete button — opens a modal for confirmation. #}
+                <button type="button"
+                        class="btn btn-outline-danger btn-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#deleteTransactionModal{{ t['id'] }}">
+                  Delete
+                </button>
 
               </td>
             </tr>
+
+            {# Delete confirmation modal #}
+            <div class="modal fade"
+                 id="deleteTransactionModal{{ t['id'] }}"
+                 tabindex="-1"
+                 aria-labelledby="deleteTransactionModalLabel{{ t['id'] }}"
+                 aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="deleteTransactionModalLabel{{ t['id'] }}">
+                      Delete transaction
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body text-center">
+                    Are you sure you want to delete this transaction?
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form method="POST"
+                          action="{{ url_for('transactions_delete', transaction_id=t['id']) }}"
+                          class="m-0">
+                      <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
           {% endfor %}
         </tbody>
 
       </table>
+        </div>
+      </div>
     </div>
 
   {% else %}

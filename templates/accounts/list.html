@@ -84,7 +84,11 @@
                             <div class="modal-header">
                                 <h5 class="modal-title"
                                     id="deleteAccountModalLabel{{ account['id'] }}">
-                                    Delete account
+                                    {% if account['usage_count'] and account['usage_count'] > 0 %}
+                                        Account in use
+                                    {% else %}
+                                        Delete account
+                                    {% endif %}
                                 </h5>
 
                                 <button type="button"
@@ -95,27 +99,37 @@
                             </div>
 
                             <div class="modal-body text-center">
-                                Are you sure you want to delete
-                                <strong>{{ account["name"] }}</strong>?
+                                {% if account['usage_count'] and account['usage_count'] > 0 %}
+                                    The account <strong>{{ account["name"] }}</strong> is linked to <strong>{{ account['usage_count'] }}</strong> transaction{{ 's' if account['usage_count'] != 1 else '' }} and cannot be deleted.
+                                {% else %}
+                                    Are you sure you want to delete
+                                    <strong>{{ account["name"] }}</strong>?
+                                {% endif %}
                             </div>
 
                             <div class="modal-footer">
                                 <button type="button"
                                         class="btn btn-outline-secondary"
                                         data-bs-dismiss="modal">
-                                    Cancel
+                                    {% if account['usage_count'] and account['usage_count'] > 0 %}
+                                        Close
+                                    {% else %}
+                                        Cancel
+                                    {% endif %}
                                 </button>
 
-                                <form method="post"
-                                      action="{{ url_for('accounts_delete', account_id=account['id']) }}"
-                                      class="m-0">
+                                {% if not account['usage_count'] or account['usage_count'] == 0 %}
+                                    <form method="post"
+                                          action="{{ url_for('accounts_delete', account_id=account['id']) }}"
+                                          class="m-0">
 
-                                    <button type="submit"
-                                            class="btn btn-danger">
-                                        Delete
-                                    </button>
+                                        <button type="submit"
+                                                class="btn btn-danger">
+                                            Delete
+                                        </button>
 
-                                </form>
+                                    </form>
+                                {% endif %}
                             </div>
 
                         </div>

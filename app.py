@@ -245,6 +245,14 @@ def accounts_list():
         (current_user.id,)
     )
 
+    for account in accounts:
+        usage = query_db(
+            "SELECT COUNT(*) as count FROM transactions WHERE account_id = ? AND user_id = ?",
+            (account['id'], current_user.id),
+            one=True,
+        )
+        account['usage_count'] = usage['count'] if usage else 0
+
     return render_template('accounts/list.html', accounts=accounts)
 
 
@@ -363,10 +371,10 @@ def accounts_delete(account_id):
         one=True
     )
 
-    if linked_transaction and linked_transaction['count'] > 0:
+    if linked_transaction is not None:
         flash(
             'This account cannot be deleted because it is linked to existing transactions.',
-            'warning'
+            'danger'
         )
         return redirect(url_for('accounts_list'))
 
