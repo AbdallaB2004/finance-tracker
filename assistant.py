@@ -156,7 +156,9 @@ def _clean_intent(intent):
 # ---------------------------------------------------------------------------
 
 _FUN_HINTS = ['entertainment', 'movie', 'cinema', 'film', 'game', 'gaming',
-              'music', 'concert', 'leisure', 'hobby', 'fun', 'night out', 'social']
+              'music', 'concert', 'leisure', 'hobby', 'fun', 'night out', 'social',
+              'netflix', 'spotify', 'disney', 'hulu', 'prime', 'youtube', 'twitch',
+              'steam', 'playstation', 'xbox', 'streaming', 'subscription']
 _FUN_KW = ['movie', 'cinema', 'film', 'game', 'concert', 'party', 'netflix',
            'night out', 'gig', 'show']
 
@@ -272,7 +274,7 @@ def local_parse(question, categories, accounts, today=None):
             keywords.extend(kws)
 
     tokens = [t for t in re.findall(r'[a-z]+', q)
-              if len(t) >= 3 and t not in acct_words and t not in STOP_WORDS]
+              if len(t) >= 2 and t not in acct_words and t not in STOP_WORDS]
     if not cats:
         for tok in tokens:
             close = get_close_matches(tok, list(cat_names.keys()), n=1, cutoff=0.8)
@@ -282,7 +284,7 @@ def local_parse(question, categories, accounts, today=None):
                     cats.append(name)
                     signal = True
     for tok in tokens:
-        close = get_close_matches(tok, list(TOPICS.keys()), n=1, cutoff=0.85)
+        close = get_close_matches(tok, list(TOPICS.keys()), n=1, cutoff=0.8)
         if close:
             hints, kws = TOPICS[close[0]]
             signal = True
