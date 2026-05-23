@@ -61,7 +61,10 @@
     const input = document.getElementById('chatInput');
     const sendBtn = document.getElementById('chatSend');
 
-    function bubble(text, who) {
+    const HISTORY_KEY = 'fintrack_chat_history';
+    let history = [];
+
+    function render(text, who) {
         const row = document.createElement('div');
         row.className = 'chat-row ' + who;
         const b = document.createElement('div');
@@ -71,6 +74,16 @@
         log.appendChild(row);
         log.scrollTop = log.scrollHeight;
         return row;
+    }
+
+    function persist() {
+        try { sessionStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch (e) {}
+    }
+
+    function bubble(text, who) {
+        history.push({ text: text, who: who });
+        persist();
+        return render(text, who);
     }
 
     function typing() {
@@ -117,5 +130,15 @@
             if (!input.disabled) ask(btn.textContent.trim());
         });
     });
+
+    (function restore() {
+        let saved = [];
+        try { saved = JSON.parse(sessionStorage.getItem(HISTORY_KEY) || '[]'); } catch (e) {}
+        if (saved.length) {
+            log.innerHTML = '';
+            history = saved;
+            saved.forEach(function (m) { render(m.text, m.who); });
+        }
+    })();
 </script>
 {% endblock %}
