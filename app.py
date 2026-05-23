@@ -1109,11 +1109,7 @@ def dashboard():
 @app.route('/assistant')
 @login_required
 def assistant_page():
-    return render_template(
-        'assistant.html',
-        suggestions=assistant.SUGGESTIONS,
-        configured=assistant.is_configured(),
-    )
+    return render_template('assistant.html', suggestions=assistant.SUGGESTIONS)
 
 
 @app.route('/assistant/ask', methods=['POST'])
@@ -1124,18 +1120,12 @@ def assistant_ask():
     if not question:
         return jsonify(answer='Ask me something about your finances to get started.')
 
-    if not assistant.is_configured():
-        return jsonify(answer='The assistant is not set up yet. Add an API key to the .env file.')
-
     categories = [dict(c) for c in query_db(
         "SELECT id, name FROM categories WHERE user_id = ?", (current_user.id,))]
     accounts = [dict(a) for a in query_db(
         "SELECT id, name FROM accounts WHERE user_id = ?", (current_user.id,))]
 
-    try:
-        intent = assistant.parse_question(question, categories, accounts)
-    except Exception:
-        return jsonify(answer="I couldn't reach the assistant just now. Please try again in a moment.")
+    intent = assistant.parse_question(question, categories, accounts)
 
     if not intent['supported']:
         return jsonify(answer=intent['message'] or

@@ -1,15 +1,16 @@
 """Finance assistant: turns plain-language questions into safe read-only queries.
 
-The model only ever decides *what* to look up (a small JSON intent). The SQL is
-built here with parameters and is always scoped to the logged-in user, so the
-model never touches the database directly.
+A question is read into a small structured intent (locally by default, or with a
+model if a key is set). The SQL is then built here with parameters and always
+scoped to the logged-in user, so the query layer never runs anything the user
+didn't ask for and only ever reads.
 """
 
 import json
 import os
-import urllib.error
+import re
 import urllib.request
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from difflib import get_close_matches
 
 
@@ -46,10 +47,6 @@ SUGGESTIONS = [
 ]
 
 
-def is_configured():
-    return bool(API_KEY)
-
-
 # ---------------------------------------------------------------------------
 # Step 1: ask the model to read the question into a small structured intent
 # ---------------------------------------------------------------------------
@@ -68,15 +65,18 @@ def _system_prompt(categories, accounts, today):
         "  message: short friendly reply ONLY when supported is false.\n"
         "  metric: one of sum, count, average, breakdown, top_category, top_account, balance, list.\n"
         "  txn_type: \"income\", \"expense\", or null for both.\n"
-        "  categories: list of category names from the list above to include (or []).\n"
-        "  exclude_categories: list of category names to leave out (or []).\n"
+        "  categories: category names chosen FROM the user's list above that fit the question (or []).\n"
+        "  exclude_categories: category names from the list to leave out (or []).\n"
+        "  keywords: words likely to appear in a transaction's description for this topic (or []).\n"
         "  account: an account name from the list above, or null for all accounts.\n"
         "  period: today, yesterday, this_week, last_week, this_month, last_month, "
         "this_year, last_year, last_n_days, or all.\n"
         "  n_days: integer when period is last_n_days, else null.\n\n"
-        "Guidance: match vague wording to the closest categories "
-        "(e.g. 'fun'/'leisure' -> Entertainment; 'essentials'/'necessary'/'bills' -> Rent, Utilities; "
-        "'eating out'/'groceries' -> Food). Correct obvious typos. "
+        "Guidance: for vague topics, look at the user's actual categories above and pick "
+        "every one that reasonably fits, then add a few description keywords so entries that "
+        "sit under a generic category are still caught. For example 'fun stuff' might map to "
+        "categories like Entertainment plus keywords such as movie, cinema, game, night out. "
+        "Pick accounts the same way, from the user's list. Correct obvious typos. "
         "Use metric balance for 'how much do I have' style questions. "
         "Use breakdown for 'by category'. Default period to all when none is implied, "
         "but use this_month for current-month phrasing. If the question is not about the "
@@ -85,8 +85,19 @@ def _system_prompt(categories, accounts, today):
 
 
 def parse_question(question, categories, accounts, today=None):
-    """Call the model and return a parsed intent dict (or an unsupported intent)."""
+    """Return a parsed intent. Uses the model if a key is set, otherwise the
+    local parser. Falls back to the local parser if the model call fails, so a
+    sensible answer is always produced."""
     today = today or date.today()
+    if not API_KEY:
+        return local_parse(question, categories, accounts, today)
+    try:
+        return _model_parse(question, categories, accounts, today)
+    except Exception:
+        return local_parse(question, categories, accounts, today)
+
+
+def _model_parse(question, categories, accounts, today):
     payload = {
         'model': MODEL,
         'temperature': 0,
@@ -131,10 +142,197 @@ def _clean_intent(intent):
         'txn_type': txn_type,
         'categories': intent.get('categories') or [],
         'exclude_categories': intent.get('exclude_categories') or [],
+        'keywords': intent.get('keywords') or [],
         'account': intent.get('account'),
         'period': intent.get('period') or 'all',
         'n_days': intent.get('n_days'),
     }
+
+
+# ---------------------------------------------------------------------------
+# Local fallback: understands the common questions with no API key at all,
+# so the feature works for everyone out of the box. The model (if a key is
+# set) only ever improves on this; it is never required.
+# ---------------------------------------------------------------------------
+
+TOPICS = {
+    'fun': (['entertainment'],
+            ['movie', 'cinema', 'game', 'concert', 'party', 'netflix', 'night out']),
+    'leisure': (['entertainment'], ['movie', 'cinema', 'game', 'concert']),
+    'entertainment': (['entertainment'], ['movie', 'cinema', 'game', 'concert']),
+    'essentials': (['rent', 'utilities'], ['rent', 'electric', 'water', 'gas', 'bill']),
+    'essential': (['rent', 'utilities'], ['rent', 'electric', 'water', 'gas', 'bill']),
+    'necessary': (['rent', 'utilities'], ['rent', 'bill']),
+    'necessities': (['rent', 'utilities'], ['rent', 'bill']),
+    'bills': (['utilities', 'rent'], ['electric', 'water', 'gas', 'bill']),
+    'food': (['food'], ['restaurant', 'grocery', 'groceries', 'lunch', 'dinner', 'coffee', 'takeaway']),
+    'groceries': (['food'], ['grocery', 'groceries', 'supermarket']),
+    'eating': (['food'], ['restaurant', 'lunch', 'dinner', 'takeaway']),
+    'dining': (['food'], ['restaurant', 'lunch', 'dinner']),
+    'transport': (['transport'], ['uber', 'taxi', 'bus', 'train', 'fuel', 'petrol']),
+    'travel': (['transport'], ['uber', 'taxi', 'bus', 'train', 'flight']),
+    'commute': (['transport'], ['bus', 'train', 'fuel', 'petrol']),
+}
+
+FINANCE_WORDS = (
+    'spend', 'spent', 'spending', 'earn', 'earned', 'income', 'cost', 'paid',
+    'pay', 'balance', 'transaction', 'transactions', 'money', 'account',
+    'accounts', 'category', 'categories', 'save', 'saving', 'savings',
+    'expense', 'expenses', 'received', 'salary', 'much', 'many',
+)
+
+
+def _find_category(word, cat_names):
+    """Map a single word to one of the user's category names, allowing typos."""
+    word = word.strip().lower()
+    if word in cat_names:
+        return cat_names[word]
+    for low, name in cat_names.items():
+        if word in low or low in word:
+            return name
+    close = get_close_matches(word, list(cat_names.keys()), n=1, cutoff=0.82)
+    return cat_names[close[0]] if close else None
+
+
+def local_parse(question, categories, accounts, today=None):
+    """Rule-based parser used when no model key is configured."""
+    today = today or date.today()
+    q = ' ' + question.lower().strip() + ' '
+    signal = False
+    cat_names = {c['name'].lower(): c['name'] for c in categories}
+
+    exclude = []
+    for m in re.finditer(r'(?:non[- ]|not |excluding |except |without )([a-z]+)', q):
+        word = m.group(1)
+        match = _find_category(word, cat_names)
+        if match and match not in exclude:
+            exclude.append(match)
+            signal = True
+
+    txn_type = None
+    if any(w in q for w in (' earn', 'income', 'received', 'made ', ' paid in')):
+        txn_type, signal = 'income', True
+    elif any(w in q for w in ('spend', 'spent', 'spending', 'expense', ' cost', ' pay ', ' paid ')):
+        txn_type, signal = 'expense', True
+
+    if 'balance' in q or 'how much do i have' in q or 'net worth' in q or 'how much money do i have' in q:
+        metric = 'balance'
+        signal = True
+    elif 'by category' in q or 'per category' in q or 'each category' in q or 'breakdown' in q:
+        metric = 'breakdown'
+        signal = True
+    elif 'which account' in q or 'what account' in q or ('account' in q and 'most' in q):
+        metric, signal = 'top_account', True
+    elif 'which category' in q or 'what category' in q or 'top category' in q or 'biggest category' in q:
+        metric, signal = 'top_category', True
+    elif 'how many' in q or 'number of' in q or ' count ' in q:
+        metric, signal = 'count', True
+    elif 'average' in q or ' avg ' in q or ' mean ' in q:
+        metric, signal = 'average', True
+    elif 'list ' in q or 'show ' in q or 'recent' in q:
+        metric, signal = 'list', True
+    else:
+        metric = 'sum'
+
+    period, n_days = _local_period(q)
+
+    acct_words = set(re.findall(r'([a-z]+)\s+account', q))
+
+    cats, keywords = [], []
+    for low, name in cat_names.items():
+        if low in acct_words:
+            continue
+        if re.search(r'\b' + re.escape(low) + r'\b', q) and name not in exclude:
+            cats.append(name)
+            signal = True
+    for word, (hints, kws) in TOPICS.items():
+        if word in q:
+            signal = True
+            for hint in hints:
+                for low, name in cat_names.items():
+                    if hint in low and name not in cats:
+                        cats.append(name)
+            keywords.extend(kws)
+
+    tokens = [t for t in re.findall(r'[a-z]+', q) if len(t) >= 4 and t not in acct_words]
+    if not cats:
+        for tok in tokens:
+            close = get_close_matches(tok, list(cat_names.keys()), n=1, cutoff=0.82)
+            if close:
+                name = cat_names[close[0]]
+                if name not in cats and name not in exclude:
+                    cats.append(name)
+                    signal = True
+    for tok in tokens:
+        close = get_close_matches(tok, list(TOPICS.keys()), n=1, cutoff=0.85)
+        if close:
+            hints, kws = TOPICS[close[0]]
+            signal = True
+            for hint in hints:
+                for low, name in cat_names.items():
+                    if hint in low and name not in cats:
+                        cats.append(name)
+            keywords.extend(kws)
+
+    cats = [c for c in cats if c not in exclude]
+
+    negated = set(re.findall(r'(?:non[- ]|not |excluding |except |without )([a-z]+)', q))
+    account = None
+    for a in accounts:
+        name = a['name'].lower()
+        if not re.search(r'\b' + re.escape(name) + r'\b', q):
+            continue
+        if any(name.startswith(n) or n.startswith(name) for n in negated):
+            continue
+        if name in cat_names and 'account' not in q:
+            continue
+        account = a['name']
+        signal = True
+        break
+
+    if not signal and not any(w in q for w in FINANCE_WORDS):
+        return _clean_intent({
+            'supported': False,
+            'message': "I can help with your spending, income, accounts and "
+                       "categories. Try \"How much did I spend last week?\"",
+        })
+
+    return _clean_intent({
+        'supported': True,
+        'metric': metric,
+        'txn_type': txn_type,
+        'categories': cats,
+        'exclude_categories': exclude,
+        'keywords': keywords,
+        'account': account,
+        'period': period,
+        'n_days': n_days,
+    })
+
+
+def _local_period(q):
+    if 'today' in q:
+        return 'today', None
+    if 'yesterday' in q:
+        return 'yesterday', None
+    if 'last week' in q or 'past week' in q:
+        return 'last_week', None
+    if 'this week' in q:
+        return 'this_week', None
+    if 'last month' in q or 'past month' in q:
+        return 'last_month', None
+    if 'this month' in q:
+        return 'this_month', None
+    if 'last year' in q or 'past year' in q:
+        return 'last_year', None
+    if 'this year' in q:
+        return 'this_year', None
+    m = re.search(r'(\d+)\s*(day|week|month)', q)
+    if m:
+        n = int(m.group(1))
+        unit = m.group(2)
+        return 'last_n_days', n * (7 if unit == 'week' else 30 if unit == 'month' else 1)
+    return 'all', None
 
 
 # ---------------------------------------------------------------------------
@@ -246,9 +444,16 @@ def build_query(intent, user_id, categories, accounts, today=None):
         params.append(date_to)
 
     cat_ids, cat_labels = _match_categories(intent['categories'], categories)
+    keywords = [k.strip().lower() for k in intent.get('keywords', []) if k and k.strip()]
+    topic = []
     if cat_ids:
-        where.append(f"t.category_id IN ({','.join('?' * len(cat_ids))})")
+        topic.append(f"t.category_id IN ({','.join('?' * len(cat_ids))})")
         params.extend(cat_ids)
+    for kw in keywords:
+        topic.append('LOWER(t.description) LIKE ?')
+        params.append(f'%{kw}%')
+    if topic:
+        where.append('(' + ' OR '.join(topic) + ')')
 
     excl_ids, _ = _match_categories(intent['exclude_categories'], categories)
     if excl_ids:
@@ -320,10 +525,8 @@ def _filters_text(plan):
     if plan.get('account_label'):
         parts.append('in ' + plan['account_label'])
     label = plan.get('period_label')
-    if label and label != 'all time':
-        parts.append(label if label.startswith(('over', 'this', 'last')) else 'on ' + label)
-    elif label == 'all time':
-        parts.append('all time')
+    if label:
+        parts.append(label)
     return (' ' + ' '.join(parts)) if parts else ''
 
 
