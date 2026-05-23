@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Assistant{% endblock %}
+
+{% block content %}
+<style>
+    .chat-card { max-width: 760px; margin: 0 auto; }
+    .chat-log { height: 52vh; min-height: 320px; overflow-y: auto; }
+    .chat-row { display: flex; margin-bottom: 0.75rem; }
+    .chat-row.user { justify-content: flex-end; }
+    .chat-bubble {
+        max-width: 80%;
+        padding: 0.6rem 0.9rem;
+        border-radius: 16px;
+        font-size: 0.92rem;
+        line-height: 1.4;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+    .chat-row.user .chat-bubble { background-color: #2563eb; color: #fff; border-bottom-right-radius: 4px; }
+    .chat-row.bot .chat-bubble { background-color: var(--bs-tertiary-bg); border: 1px solid var(--bs-border-color); border-bottom-left-radius: 4px; }
+    .chat-suggestions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .chat-chip { font-size: 0.8rem; border-radius: 999px; }
+    .typing span { animation: blink 1.2s infinite; }
+    .typing span:nth-child(2) { animation-delay: 0.2s; }
+    .typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
+</style>
+
+<div class="chat-card">
+    <h2 class="mb-1">Assistant</h2>
+    <p class="text-muted mb-3">Ask about your spending, income and accounts in plain English.</p>
+
+    {% if not configured %}
+    <div class="alert alert-warning border-0 shadow-sm">
+        The assistant needs an API key. Add <code>AI_API_KEY</code> to your <code>.env</code> file, then restart the app.
+    </div>
+    {% endif %}
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="chat-log" id="chatLog">
+                <div class="chat-row bot">
+                    <div class="chat-bubble">Hi! Ask me things like "How much did I spend last week?" and I'll check your data.</div>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer bg-body">
+            <div class="chat-suggestions mb-2">
+                {% for s in suggestions %}
+                <button type="button" class="btn btn-outline-secondary btn-sm chat-chip" data-suggestion>{{ s }}</button>
+                {% endfor %}
+            </div>
+            <form id="chatForm" class="d-flex gap-2" autocomplete="off">
+                <input type="text" id="chatInput" class="form-control" placeholder="Ask a question..." maxlength="500" required>
+                <button type="submit" class="btn btn-primary fw-bold" id="chatSend">Send</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const log = document.getElementById('chatLog');
+    const form = document.getElementById('chatForm');
+    const input = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('chatSend');
+
+    function bubble(text, who) {
+        const row = document.createElement('div');
+        row.className = 'chat-row ' + who;
+        const b = document.createElement('div');
+        b.className = 'chat-bubble';
+        b.textContent = text;
+        row.appendChild(b);
+        log.appendChild(row);
+        log.scrollTop = log.scrollHeight;
+        return row;
+    }
+
+    function typing() {
+        const row = document.createElement('div');
+        row.className = 'chat-row bot';
+        row.innerHTML = '<div class="chat-bubble typing"><span>.</span><span>.</span><span>.</span></div>';
+        log.appendChild(row);
+        log.scrollTop = log.scrollHeight;
+        return row;
+    }
+
+    async function ask(question) {
+        bubble(question, 'user');
+        input.value = '';
+        input.disabled = true;
+        sendBtn.disabled = true;
+        const wait = typing();
+        try {
+            const res = await fetch('{{ url_for("assistant_ask") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question })
+            });
+            const data = await res.json();
+            wait.remove();
+            bubble(data.answer || 'Sorry, something went wrong.', 'bot');
+        } catch (e) {
+            wait.remove();
+            bubble('Sorry, I could not get a response. Please try again.', 'bot');
+        }
+        input.disabled = false;
+        sendBtn.disabled = false;
+        input.focus();
+    }
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const q = input.value.trim();
+        if (q) ask(q);
+    });
+
+    document.querySelectorAll('[data-suggestion]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            if (!input.disabled) ask(btn.textContent.trim());
+        });
+    });
+</script>
+{% endblock %}

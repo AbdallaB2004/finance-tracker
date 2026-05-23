@@ -4,13 +4,16 @@ import sqlite3
 from datetime import datetime, timedelta
 
 from flask import (
-    Flask, flash, g, redirect, render_template, request, session, url_for,
+    Flask, flash, g, jsonify, redirect, render_template, request, session,
+    url_for,
 )
 from flask_login import (
     LoginManager, UserMixin, current_user, login_required, login_user,
     logout_user,
 )
 from werkzeug.security import check_password_hash, generate_password_hash
+
+import assistant
 
 
 app = Flask(__name__)
@@ -1097,6 +1100,50 @@ def dashboard():
         expense_breakdown=expense_breakdown,
     )
 
+
+
+# ============================================================================
+# 7. ASSISTANT  (Person A)
+# ============================================================================
+
+@app.route('/assistant')
+@login_required
+def assistant_page():
+    return render_template(
+        'assistant.html',
+        suggestions=assistant.SUGGESTIONS,
+        configured=assistant.is_configured(),
+    )
+
+
+@app.route('/assistant/ask', methods=['POST'])
+@login_required
+def assistant_ask():
+    question = (request.get_json(silent=True) or {}).get('question', '').strip()
+
+    if not question:
+        return jsonify(answer='Ask me something about your finances to get started.')
+
+    if not assistant.is_configured():
+        return jsonify(answer='The assistant is not set up yet. Add an API key to the .env file.')
+
+    categories = [dict(c) for c in query_db(
+        "SELECT id, name FROM categories WHERE user_id = ?", (current_user.id,))]
+    accounts = [dict(a) for a in query_db(
+        "SELECT id, name FROM accounts WHERE user_id = ?", (current_user.id,))]
+
+    try:
+        intent = assistant.parse_question(question, categories, accounts)
+    except Exception:
+        return jsonify(answer="I couldn't reach the assistant just now. Please try again in a moment.")
+
+    if not intent['supported']:
+        return jsonify(answer=intent['message'] or
+                       "I can only help with questions about your accounts, transactions and spending.")
+
+    sql, params, plan = assistant.build_query(intent, current_user.id, categories, accounts)
+    rows = query_db(sql, params)
+    return jsonify(answer=assistant.format_answer(rows, plan))
 
 
 # ============================================================================
