@@ -155,16 +155,24 @@ def _clean_intent(intent):
 # set) only ever improves on this; it is never required.
 # ---------------------------------------------------------------------------
 
+_FUN_HINTS = ['entertainment', 'movie', 'cinema', 'film', 'game', 'gaming',
+              'music', 'concert', 'leisure', 'hobby', 'fun', 'night out', 'social']
+_FUN_KW = ['movie', 'cinema', 'film', 'game', 'concert', 'party', 'netflix',
+           'night out', 'gig', 'show']
+
+_ESSENTIAL_HINTS = ['rent', 'utilities', 'food', 'grocer', 'transport',
+                    'health', 'medical', 'insurance', 'bill']
+
 TOPICS = {
-    'fun': (['entertainment'],
-            ['movie', 'cinema', 'game', 'concert', 'party', 'netflix', 'night out']),
-    'leisure': (['entertainment'], ['movie', 'cinema', 'game', 'concert']),
-    'entertainment': (['entertainment'], ['movie', 'cinema', 'game', 'concert']),
-    'essentials': (['rent', 'utilities'], ['rent', 'electric', 'water', 'gas', 'bill']),
-    'essential': (['rent', 'utilities'], ['rent', 'electric', 'water', 'gas', 'bill']),
-    'necessary': (['rent', 'utilities'], ['rent', 'bill']),
-    'necessities': (['rent', 'utilities'], ['rent', 'bill']),
-    'bills': (['utilities', 'rent'], ['electric', 'water', 'gas', 'bill']),
+    'fun': (_FUN_HINTS, _FUN_KW),
+    'leisure': (_FUN_HINTS, _FUN_KW),
+    'entertainment': (_FUN_HINTS, _FUN_KW),
+    'essentials': (_ESSENTIAL_HINTS, []),
+    'essential': (_ESSENTIAL_HINTS, []),
+    'necessary': (_ESSENTIAL_HINTS, []),
+    'necessities': (_ESSENTIAL_HINTS, []),
+    'necessasities': (_ESSENTIAL_HINTS, []),
+    'bills': (['utilities', 'rent', 'bill', 'insurance'], ['electric', 'water', 'gas', 'bill']),
     'food': (['food'], ['restaurant', 'grocery', 'groceries', 'lunch', 'dinner', 'coffee', 'takeaway']),
     'groceries': (['food'], ['grocery', 'groceries', 'supermarket']),
     'eating': (['food'], ['restaurant', 'lunch', 'dinner', 'takeaway']),
@@ -172,6 +180,15 @@ TOPICS = {
     'transport': (['transport'], ['uber', 'taxi', 'bus', 'train', 'fuel', 'petrol']),
     'travel': (['transport'], ['uber', 'taxi', 'bus', 'train', 'flight']),
     'commute': (['transport'], ['bus', 'train', 'fuel', 'petrol']),
+}
+
+STOP_WORDS = {
+    'how', 'much', 'many', 'the', 'and', 'for', 'did', 'was', 'are', 'you',
+    'your', 'this', 'that', 'last', 'past', 'week', 'weeks', 'year', 'years',
+    'day', 'days', 'month', 'months', 'spend', 'spent', 'show', 'list', 'give',
+    'have', 'what', 'from', 'total', 'all', 'each', 'per', 'were', 'about',
+    'does', 'did', 'into', 'with', 'over', 'they', 'them', 'whats', 'income',
+    'earn', 'earned', 'cost', 'most', 'average',
 }
 
 FINANCE_WORDS = (
@@ -254,10 +271,11 @@ def local_parse(question, categories, accounts, today=None):
                         cats.append(name)
             keywords.extend(kws)
 
-    tokens = [t for t in re.findall(r'[a-z]+', q) if len(t) >= 4 and t not in acct_words]
+    tokens = [t for t in re.findall(r'[a-z]+', q)
+              if len(t) >= 3 and t not in acct_words and t not in STOP_WORDS]
     if not cats:
         for tok in tokens:
-            close = get_close_matches(tok, list(cat_names.keys()), n=1, cutoff=0.82)
+            close = get_close_matches(tok, list(cat_names.keys()), n=1, cutoff=0.8)
             if close:
                 name = cat_names[close[0]]
                 if name not in cats and name not in exclude:
