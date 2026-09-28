@@ -34,7 +34,7 @@ python -m venv venv
 source venv/bin/activate
 ```
 
-You should see `(venv)` at the start of your prompt. That means it's active. Activate the venv every time you open a new terminal for this project — it's the most common gotcha.
+You should see `(venv)` at the start of your prompt. That means it's active. Activate the venv every time you open a new terminal for this project. It's the most common gotcha.
 
 ## 3. Install dependencies
 
@@ -109,29 +109,29 @@ git push -u origin feature/accounts-list
 
 Go to GitHub. There'll be a yellow "Compare & pull request" banner. Click it. Write a short description (what you did, anything reviewers should check carefully). Assign A as reviewer. Open the PR.
 
-A reviews, leaves comments if needed. You push more commits to the same branch to address them — the PR updates automatically. When approved, A clicks merge.
+A reviews, leaves comments if needed. You push more commits to the same branch to address them, and the PR updates automatically. When approved, A clicks merge.
 
 **Branch naming:** `feature/<short-name>` or `fix/<short-name>`. Lowercase, hyphens.
 
 **Commit messages:** lowercase, present tense, under 60 chars. `add budget filter` not `Updated Stuff` or `WIP final final FINAL`.
 
-**Delete your branch after merge** — GitHub gives you a button on the PR.
+**Delete your branch after merge.** GitHub gives you a button on the PR.
 
 ---
 
-## Code rules — the things that bite you
+## Code rules: the things that bite you
 
-### SQL — always parameterise
+### SQL: always parameterise
 
 ```python
 # right
 query_db("SELECT * FROM users WHERE username = ?", (username,))
 
-# wrong — SQL injection risk
+# wrong: SQL injection risk
 query_db(f"SELECT * FROM users WHERE username = '{username}'")
 ```
 
-### Passwords — always hash
+### Passwords: always hash
 
 ```python
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -142,7 +142,7 @@ if check_password_hash(stored_hash, password):
     ...
 ```
 
-### Auth — both guards on every protected route
+### Auth: both guards on every protected route
 
 ```python
 @app.route('/accounts')
@@ -157,13 +157,13 @@ def accounts_list():
 
 `@login_required` stops unauthenticated requests. The `WHERE user_id = ?` stops authenticated users from seeing each other's data. You need both.
 
-### Style — PEP 8
+### Style: PEP 8
 
 - 4-space indentation, never tabs
 - `snake_case` for functions and variables, `PascalCase` for classes
 - Short docstrings on every route and helper
 - Descriptive names (`transactions_list`, not `tl`; `user_id`, not `uid`)
-- Imports grouped: stdlib, third-party, local — blank line between groups
+- Imports grouped: stdlib, third-party, local (blank line between groups)
 - No `import *`
 
 ---
@@ -173,7 +173,7 @@ def accounts_list():
 ```
 finance-tracker-swe5303/
 ├── app.py              # Flask app, sections split by owner
-├── schema.sql          # 4 tables — users, accounts, categories, transactions
+├── schema.sql          # 4 tables: users, accounts, categories, transactions
 ├── init_db.py          # builds finance.db from schema.sql
 ├── requirements.txt
 ├── templates/          # Jinja HTML
@@ -190,12 +190,12 @@ finance-tracker-swe5303/
 
 `app.py` is split into 6 sections:
 
-1. Database helpers — A
-2. Auth — A
-3. Accounts CRUD — D
-4. Categories CRUD — C
-5. Transactions CRUD — B
-6. Dashboard — B
+1. Database helpers (A)
+2. Auth (A)
+3. Accounts CRUD (D)
+4. Categories CRUD (C)
+5. Transactions CRUD (B)
+6. Dashboard (B)
 
 Edit your own section. If you have to touch outside it, flag in the chat first.
 
@@ -221,8 +221,8 @@ Edit your own section. If you have to touch outside it, flag in the chat first.
 
 ## Where to look for what
 
-- **What is the project?** — `README.md`
-- **What's my section / who's doing what?** — `TEAM_BRIEF.md`
-- **What am I building specifically?** — `REQUIREMENTS.md`
+- **What is the project?** `README.md`
+- **What's my section / who's doing what?** `TEAM_BRIEF.md`
+- **What am I building specifically?** `REQUIREMENTS.md`
 
-If you're stuck for more than an hour, post in `#dev-help` with the full error message and what you've already tried. Don't sit on it.
+If you're stuck for more than an hour, post in the team chat with the full error message and what you've already tried. Don't sit on it.

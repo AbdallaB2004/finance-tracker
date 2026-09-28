@@ -680,7 +680,7 @@ def transactions_list():
 
     # Go into the database and fetch all transactions that belong to the logged-in user.
     # We also JOIN with the accounts and categories tables so we get the account name
-    # and category name/colour — otherwise we would only get ID numbers.
+    # and category name/colour, otherwise we would only get ID numbers.
     # ORDER BY date DESC means newest transactions appear at the top.
     transactions = query_db(
         """
@@ -752,7 +752,7 @@ def transactions_add():
             except ValueError:
                 error = 'Amount must be a number.'
 
-        # Check the type is exactly 'income' or 'expense' — nothing else is allowed.
+        # Check the type is exactly 'income' or 'expense'. Nothing else is allowed.
         if not error and type_ not in ('income', 'expense'):
             error = 'Type must be income or expense.'
 
@@ -792,7 +792,7 @@ def transactions_add():
                 categories=categories,
             )
 
-        # All checks passed — save the new transaction to the database.
+        # All checks passed, so save the new transaction to the database.
         execute_db(
             """
             INSERT INTO transactions
@@ -907,7 +907,7 @@ def transactions_edit(transaction_id):
                 categories=categories,
             )
 
-        # All checks passed — update the existing transaction in the database.
+        # All checks passed, so update the existing transaction in the database.
         # UPDATE overwrites the old values with the new ones.
         # WHERE id = ? AND user_id = ? is a final security check.
         execute_db(
@@ -936,7 +936,7 @@ def transactions_edit(transaction_id):
 
 
 # This route deletes a transaction.
-# methods=['POST'] means it only accepts a form submission — NOT a URL visit.
+# methods=['POST'] means it only accepts a form submission, NOT a URL visit.
 # This prevents accidental deletion if someone just opens a link.
 @app.route('/transactions/<int:transaction_id>/delete', methods=['POST'])
 @login_required
@@ -1072,7 +1072,7 @@ def get_recent_transactions(user_id, limit=5):
     )
 
 
-# This is the main dashboard page — the first thing users see after logging in.
+# This is the main dashboard page, the first thing users see after logging in.
 # @app.route('/dashboard') means it runs when someone visits the dashboard URL.
 @app.route('/dashboard')
 @login_required

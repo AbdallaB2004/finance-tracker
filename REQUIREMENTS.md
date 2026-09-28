@@ -2,7 +2,7 @@
 
 What FinTrack must do. Use this list as the spec when implementing features and when filling in the Requirement Analysis section of the SRS.
 
-Numbering matches the assignment brief (FR-01 to FR-11). If the brief itself has duplicate numbers or contradictions, use the corrected list below — it's been deduplicated.
+Numbering matches the assignment brief (FR-01 to FR-11). If the brief itself has duplicate numbers or contradictions, use the corrected list below. It's been deduplicated.
 
 ## Functional Requirements
 
@@ -25,7 +25,7 @@ Numbering matches the assignment brief (FR-01 to FR-11). If the brief itself has
 ### Security
 
 - All passwords are hashed with PBKDF2 (via Werkzeug) before being stored. Plaintext passwords are never logged or persisted.
-- All SQL queries use parameterised binding (`?`) — no string concatenation, no f-strings on user input.
+- All SQL queries use parameterised binding (`?`): no string concatenation, no f-strings on user input.
 - Sessions are managed by Flask-Login using HTTP-only cookies with `SameSite=Lax`.
 - Every route that reads or writes user data uses `@login_required` **and** filters every database query by `user_id`.
 
@@ -54,7 +54,7 @@ Numbering matches the assignment brief (FR-01 to FR-11). If the brief itself has
 - `app.py` is split into clearly marked sections per feature, each with a header showing the owner (Person A/B/C/D).
 - Every route and helper has a short docstring.
 - Names are descriptive (`transactions_list`, not `tl`; `user_id`, not `uid`).
-- Code follows PEP 8 — 4-space indents, `snake_case`, imports grouped (stdlib / third-party / local).
+- Code follows PEP 8: 4-space indents, `snake_case`, imports grouped (stdlib / third-party / local).
 
 ### Portability
 

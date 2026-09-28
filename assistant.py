@@ -604,7 +604,7 @@ def format_answer(rows, plan):
     if not rows:
         return f"I couldn't find any matching transactions{_filters_text(plan)}."
     lines = '\n'.join(
-        f'• {r["date"]} — {r["category"]} — {_money(r["amount"])}'
+        f'• {r["date"]}: {r["category"]}, {_money(r["amount"])}'
         + (f' ({r["description"]})' if r["description"] else '')
         for r in rows
     )

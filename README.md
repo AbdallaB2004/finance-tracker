@@ -1,8 +1,8 @@
-# FinTrack — SWE5303
+# FinTrack
 
-Personal finance web app. Built with Flask, SQLite and Bootstrap 5 as the SWE5303 group project (assessment 2).
+Personal finance web app. Built with Flask, SQLite and Bootstrap 5 as a university software engineering group project (assessment 2).
 
-A logged-in user can register, add their accounts, set income and expense categories, log transactions, and see a dashboard with balance, monthly totals and an expense-by-category chart. No bank integration, no cloud — everything sits in a local SQLite file. We're treating local-only as a feature, not a limitation; there's a longer argument for it in the SRS lit review.
+A logged-in user can register, add their accounts, set income and expense categories, log transactions, and see a dashboard with balance, monthly totals and an expense-by-category chart. No bank integration, no cloud: everything sits in a local SQLite file. We're treating local-only as a feature, not a limitation; there's a longer argument for it in the SRS lit review.
 
 ## Quick start
 
@@ -27,18 +27,18 @@ python app.py
 
 Open `http://localhost:5000`. You should see the login page. Register a user, log in, you're on the dashboard.
 
-If anything goes wrong, the troubleshooting table in `DEV_SETUP.md` covers most of it. If your problem isn't there, post in `#dev-help`.
+If anything goes wrong, the troubleshooting table in `DEV_SETUP.md` covers most of it. If your problem isn't there, post in the team chat.
 
 ## Where to read what
 
 | Doc | What's in it |
 | --- | --- |
-| `README.md` | This page — orientation |
+| `README.md` | This page: orientation |
 | `TEAM_BRIEF.md` | Who's doing what, ground rules, communication, timeline |
 | `DEV_SETUP.md` | Step-by-step environment setup and Git workflow |
 | `REQUIREMENTS.md` | The 11 functional and 6 non-functional requirements (from the brief) |
 
-Read `TEAM_BRIEF.md` first — it's the shortest and tells you which section is yours. Then `DEV_SETUP.md` when you sit down to code.
+Read `TEAM_BRIEF.md` first. It's the shortest and tells you which section is yours. Then `DEV_SETUP.md` when you sit down to code.
 
 ## Stack
 
@@ -52,13 +52,13 @@ Read `TEAM_BRIEF.md` first — it's the shortest and tells you which section is 
 | Bootstrap 5 (CDN) | UI looks fine without us having to design anything |
 | Chart.js (CDN) | One doughnut chart on the dashboard |
 
-Bootstrap and Chart.js load from a CDN at runtime — nothing to install for the frontend. The only `pip install` is on the Python side.
+Bootstrap and Chart.js load from a CDN at runtime, so there's nothing to install for the frontend. The only `pip install` is on the Python side.
 
 ## Project layout
 
 ```
 finance-tracker-swe5303/
-├── app.py              # Flask app — sections split by owner (A/B/C/D)
+├── app.py              # Flask app, sections split by owner (A/B/C/D)
 ├── schema.sql          # 4 tables: users, accounts, categories, transactions
 ├── init_db.py          # builds finance.db from schema.sql
 ├── requirements.txt    # pip dependencies
@@ -92,9 +92,9 @@ Read `TEAM_BRIEF.md` for the full list.
 
 | Letter | Name | Section |
 | --- | --- | --- |
-| A | Abdalla Bakr (HE26492) | Lead, database helpers, auth |
-| B | Cirja Petru (HE25237) | Transactions + dashboard |
-| C | Naima Islam (HE30646)| Categories |
-| D | Deividas Bandaravicius (HE26108) | Accounts |
+| A | Abdalla Bakr | Lead, database helpers, auth |
+| B | Cirja Petru | Transactions + dashboard |
+| C | Naima Islam | Categories |
+| D | Deividas Bandaravicius | Accounts |
 
 A/B/C/D is just a tidy way to map people to sections in `app.py`. Fill in C and D's names once we lock them in.

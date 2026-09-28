@@ -179,7 +179,7 @@
    This block only runs if there is expense data to show. #}
 {% if expense_breakdown %}
 
-  {# Load Chart.js from a CDN (no installation needed — it loads from the internet). #}
+  {# Load Chart.js from a CDN (no installation needed, it loads from the internet). #}
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <script>
@@ -191,7 +191,7 @@
 
     // Create the doughnut chart inside the <canvas id="expenseChart"> element above.
     new Chart(document.getElementById('expenseChart'), {
-      type: 'doughnut',  // Chart type — a ring/doughnut shape
+      type: 'doughnut',  // Chart type: a ring/doughnut shape
       data: {
         labels: labels,  // Category names shown in the legend
         datasets: [{

@@ -71,7 +71,7 @@
                                 {% for t in recent_transactions %}
                                 <tr>
                                     <td>{{ t.date }}</td>
-                                    <td>{% if t.description %}<span class="d-inline-block text-truncate" style="max-width: 100%;" title="{{ t.description }}">{{ t.description }}</span>{% else %}—{% endif %}</td>
+                                    <td>{% if t.description %}<span class="d-inline-block text-truncate" style="max-width: 100%;" title="{{ t.description }}">{{ t.description }}</span>{% else %}-{% endif %}</td>
                                     <td class="d-none d-md-table-cell">
                                         <span class="badge text-truncate d-inline-block align-middle"
                                               style="background-color: {{ t.category_color }}; max-width: 100%;"

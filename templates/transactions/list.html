@@ -50,7 +50,7 @@
               <td class="text-nowrap">{{ t['date'] }}</td>
 
               {# Description column. If no description, show a dash. #}
-              <td>{% if t['description'] %}<span class="d-inline-block text-truncate" style="max-width: 100%;" title="{{ t['description'] }}">{{ t['description'] }}</span>{% else %}—{% endif %}</td>
+              <td>{% if t['description'] %}<span class="d-inline-block text-truncate" style="max-width: 100%;" title="{{ t['description'] }}">{{ t['description'] }}</span>{% else %}-{% endif %}</td>
 
               {# Account name (e.g. "Lloyds Current"). #}
               <td class="d-none d-md-table-cell">{{ t['account_name'] }}</td>
@@ -65,7 +65,7 @@
                 </span>
               </td>
 
-              {# Type column — shows a green "Income" badge or red "Expense" badge. #}
+              {# Type column: shows a green "Income" badge or red "Expense" badge. #}
               <td class="d-none d-sm-table-cell">
                 {% if t['type'] == 'income' %}
                   <span class="badge bg-success">Income</span>
@@ -74,7 +74,7 @@
                 {% endif %}
               </td>
 
-              {# Amount column — green with a + sign for income, red with a − for expense.
+              {# Amount column: green with a + sign for income, red with a − for expense.
                  '%.2f' formats the number to always show 2 decimal places. #}
               <td class="text-end text-nowrap fw-semibold
                 {% if t['type'] == 'income' %}text-success{% else %}text-danger{% endif %}"
@@ -84,15 +84,15 @@
                 £{{ '%.2f' | format(t['amount']) }}
               </td>
 
-              {# Action buttons column — Edit and Delete for each row. #}
+              {# Action buttons column: Edit and Delete for each row. #}
               <td class="text-center">
                 <div class="d-flex justify-content-center gap-2 flex-nowrap">
 
-                  {# Edit button — links to the edit page for this transaction. #}
+                  {# Edit button: links to the edit page for this transaction. #}
                   <a href="{{ url_for('transactions_edit', transaction_id=t['id']) }}"
                      class="btn btn-outline-secondary btn-sm">Edit</a>
 
-                  {# Delete button — opens a modal for confirmation. #}
+                  {# Delete button: opens a modal for confirmation. #}
                   <button type="button"
                           class="btn btn-outline-danger btn-sm"
                           data-bs-toggle="modal"
